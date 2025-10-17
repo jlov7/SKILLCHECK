@@ -1,6 +1,6 @@
 # SKILLCHECK (research preview)
 
-SKILLCHECK is a safety-first auditor for [Claude Skills][anthropic-skills]. Inspired by Anthropic’s [Introducing Agent Skills announcement][anthropic-announcement] and the official Skill templates, it gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on. This project is non-commercial and offered as a research preview for the community.
+SKILLCHECK is a safety-first auditor for [Claude Skills][anthropic-skills]. Inspired by Anthropic’s [Introducing Agent Skills announcement][anthropic-announcement] and the official Skill templates, it gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on. This repository is personal R&D, not a product or funded roadmap, and is shared “as is” for anyone experimenting with Skills.
 
 - **One-click confidence** – Run a single CLI command to lint, probe, and attest a Skill.
 - **Actionable evidence** – Human-friendly Markdown reports, automation-ready JSON, and signed attestations.
