@@ -1,0 +1,3 @@
+skill_name,skill_version,lint_violations,lint_issues,probe_egress,probe_disallowed_writes,policy_hash,signature_mode,status
+Brand Voice Editor (Safe Demo),1.0.0,0,0,0,0,bb6abbbb72f4b360fe1cf6f31bc0d4525ee5341a799c9ef03778ec0c03f716b4,unsigned,pass
+Risky Net Egress Demo,0.1.0,5,5,5,2,,,fail

@@ -1,0 +1,32 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "name": "safe_brand_guidelines",
+  "creationInfo": {
+    "created": "2025-10-17T18:40:19.445837+00:00",
+    "creators": [
+      "Tool: skillcheck/0.1.0"
+    ]
+  },
+  "files": [
+    {
+      "spdxid": "SPDXRef-SKILL.md",
+      "fileName": "SKILL.md",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "16b99cc47e04813030f801eb6ede807a622dedb45783a0a935a85f8bae3420ed"
+        }
+      ]
+    },
+    {
+      "spdxid": "SPDXRef-style-guide-brand-voice.md",
+      "fileName": "style-guide/brand-voice.md",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "59e4fc86c8de3e2cfca771af300fd35fa363caea9e5569cd20094ea625ee167c"
+        }
+      ]
+    }
+  ]
+}

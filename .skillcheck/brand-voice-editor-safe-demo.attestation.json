@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2025-10-17T18:40:19.446233+00:00",
+  "skill": {
+    "name": "Brand Voice Editor (Safe Demo)",
+    "version": "1.0.0",
+    "path": "examples/safe_brand_guidelines"
+  },
+  "policy": {
+    "path": "package://skillcheck/policies/default.policy.yaml",
+    "sha256": "bb6abbbb72f4b360fe1cf6f31bc0d4525ee5341a799c9ef03778ec0c03f716b4",
+    "limits": {
+      "skill_name_max": 64,
+      "skill_description_max": 200
+    },
+    "allow": {
+      "network_hosts": [],
+      "filesystem_read": [
+        "*.md",
+        "*.txt",
+        "*.yaml",
+        "*.yml",
+        "**/*.md",
+        "**/*.txt",
+        "**/*.yaml",
+        "**/*.yml"
+      ],
+      "filesystem_write": [
+        "scratch/**"
+      ]
+    },
+    "forbidden_patterns": [
+      {
+        "code": "forbidden_pattern_1",
+        "pattern": "(?i)api[_-]?key|secret|token\\s*[:=]",
+        "reason": "Potential secret detected in SKILL.md or resources"
+      },
+      {
+        "code": "forbidden_pattern_2",
+        "pattern": "curl\\s+http",
+        "reason": "Raw network call via curl (HTTP/HTTPS) is forbidden without allowlist"
+      },
+      {
+        "code": "forbidden_pattern_3",
+        "pattern": "requests\\.get\\(",
+        "reason": "Python network call via requests.get is forbidden without allowlist"
+      },
+      {
+        "code": "forbidden_pattern_4",
+        "pattern": "urllib\\.request\\.urlopen\\(",
+        "reason": "Python network call via urllib.request is forbidden without allowlist"
+      },
+      {
+        "code": "forbidden_pattern_5",
+        "pattern": "subprocess\\.(Popen|run)\\(",
+        "reason": "Shelling out is restricted; must be explicitly allowed by policy"
+      }
+    ],
+    "waivers": [],
+    "dependencies": {
+      "allow_pypi": [],
+      "allow_npm": []
+    },
+    "probe": {
+      "enable_exec": false,
+      "exec_globs": [
+        "scripts/**/*.py",
+        "*.py"
+      ],
+      "timeout": 5
+    },
+    "loaded_at": "2025-10-17T18:40:19.446239+00:00"
+  },
+  "lint": {
+    "skill": {
+      "name": "Brand Voice Editor (Safe Demo)",
+      "version": "1.0.0"
+    },
+    "summary": {
+      "files_scanned": 2,
+      "issue_count": 0,
+      "violations_count": 0
+    },
+    "issues": []
+  },
+  "probe": {
+    "skill": {
+      "name": "Brand Voice Editor (Safe Demo)",
+      "version": "1.0.0"
+    },
+    "summary": {
+      "files_loaded_count": 2,
+      "egress_attempts": 0,
+      "disallowed_writes": 0
+    },
+    "egress_attempts": [],
+    "disallowed_writes": [],
+    "notes": [],
+    "policy_hash": "bb6abbbb72f4b360fe1cf6f31bc0d4525ee5341a799c9ef03778ec0c03f716b4"
+  },
+  "sbom": {
+    "path": "/Users/jasonlovell/AI/Work Prototypes/SKILLCHECK/skillcheck/.skillcheck/brand-voice-editor-safe-demo.sbom.json",
+    "sha256": "f9ed6898bde22245dae0681df794073c1a9a37fadf71f9d21135cd90ca73b51e"
+  },
+  "files": {
+    "SKILL.md": "16b99cc47e04813030f801eb6ede807a622dedb45783a0a935a85f8bae3420ed",
+    "style-guide/brand-voice.md": "59e4fc86c8de3e2cfca771af300fd35fa363caea9e5569cd20094ea625ee167c"
+  },
+  "signature": {
+    "mode": "unsigned",
+    "reason": "sigstore library not installed; attestation stored without signature"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "skill": {
+    "name": "Brand Voice Editor (Safe Demo)",
+    "version": "1.0.0"
+  },
+  "summary": {
+    "files_loaded_count": 2,
+    "egress_attempts": 0,
+    "disallowed_writes": 0
+  },
+  "egress_attempts": [],
+  "disallowed_writes": [],
+  "notes": [],
+  "policy_hash": "bb6abbbb72f4b360fe1cf6f31bc0d4525ee5341a799c9ef03778ec0c03f716b4"
+}

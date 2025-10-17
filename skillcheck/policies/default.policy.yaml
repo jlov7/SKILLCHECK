@@ -1,0 +1,55 @@
+# Default policy for SKILLCHECK (deny-by-default, safe lower-bounds)
+version: 1
+limits:
+  skill_name_max: 64
+  skill_description_max: 200
+
+allow:
+  network:
+    # No outbound network by default. Add hosts to allowlist to grant egress.
+    hosts: []   # e.g., ["https://api.example.org", "https://files.myorg.com"]
+  filesystem:
+    # Read-only by default; these globs allow typical Skill content to be read.
+    read_globs:
+      - "*.md"
+      - "*.txt"
+      - "*.yaml"
+      - "*.yml"
+      - "**/*.md"
+      - "**/*.txt"
+      - "**/*.yaml"
+      - "**/*.yml"
+    # Writes are blocked by default; allow only to a scratch area.
+    write_globs:
+      - "scratch/**"
+
+dependencies:
+  # If you permit dependency installation for Skills, list explicit allowlists.
+  allow_pypi: []    # e.g., ["pyyaml==6.*"]
+  allow_npm:  []
+
+probe:
+  enable_exec: false
+  exec_globs:
+    - "scripts/**/*.py"
+    - "*.py"
+  timeout: 5
+
+forbidden_patterns:
+  # Lint tripwires that should *always* be flagged. Keep patterns concise & anchored.
+  - pattern: "(?i)api[_-]?key|secret|token\\s*[:=]"
+    reason: "Potential secret detected in SKILL.md or resources"
+  - pattern: "curl\\s+http"
+    reason: "Raw network call via curl (HTTP/HTTPS) is forbidden without allowlist"
+  - pattern: "requests\\.get\\("
+    reason: "Python network call via requests.get is forbidden without allowlist"
+  - pattern: "urllib\\.request\\.urlopen\\("
+    reason: "Python network call via urllib.request is forbidden without allowlist"
+  - pattern: "subprocess\\.(Popen|run)\\("
+    reason: "Shelling out is restricted; must be explicitly allowed by policy"
+
+waivers:
+  # Optional per-rule waivers, recorded for audit/attestation.
+  # - path: "examples/my_skill/SKILL.md"
+  #   rule: "curl raw network call"
+  #   justification: "Talk to approved host behind egress proxy"

@@ -1,0 +1,51 @@
+{
+  "skill": {
+    "name": "Risky Net Egress Demo",
+    "version": "0.1.0"
+  },
+  "summary": {
+    "files_loaded_count": 1,
+    "egress_attempts": 5,
+    "disallowed_writes": 2
+  },
+  "egress_attempts": [
+    {
+      "code": "EGRESS_CURL_HTTP",
+      "message": "SKILL.md: outbound call to http://example.com blocked by policy"
+    },
+    {
+      "code": "EGRESS_URLLIB_URLOPEN",
+      "message": "SKILL.md: outbound call to https://example.com blocked by policy"
+    },
+    {
+      "code": "EGRESS_URLLIB_URLOPEN",
+      "message": "scripts/do_egress.py: outbound call to https://example.com blocked by policy"
+    },
+    {
+      "code": "EGRESS_CURL_HTTP",
+      "message": "scripts/unsafe_shell.sh: outbound call to http://example.com blocked by policy"
+    },
+    {
+      "code": "EGRESS_SANDBOX",
+      "message": "scripts/do_egress.py: urlopen to https://example.com blocked"
+    }
+  ],
+  "disallowed_writes": [
+    {
+      "code": "WRITE_PATH_WRITE_TEXT",
+      "message": "scripts/do_egress.py: attempt to access ../outside.txt escapes skill root"
+    },
+    {
+      "code": "WRITE_SANDBOX",
+      "message": "scripts/do_egress.py: write to ../outside.txt escapes skill root"
+    }
+  ],
+  "notes": [
+    "Read outside policy allowlist ignored: scratch/.gitkeep",
+    "Read outside policy allowlist ignored: scripts/do_egress.py",
+    "Read outside policy allowlist ignored: scripts/unsafe_shell.sh",
+    "Sandbox exec: scripts/do_egress.py",
+    "scripts/do_egress.py stdout: [egress-blocked] SandboxViolation('urlopen to https://example.com blocked')\n[write-blocked] SandboxViolation('write to ../outside.txt escapes skill root')"
+  ],
+  "policy_hash": "bb6abbbb72f4b360fe1cf6f31bc0d4525ee5341a799c9ef03778ec0c03f716b4"
+}

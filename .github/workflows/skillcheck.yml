@@ -1,0 +1,49 @@
+name: SKILLCHECK
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+      - name: Run unit tests
+        run: pytest -q
+      - name: Lint safe sample
+        run: python -m skillcheck.cli lint examples/safe_brand_guidelines --output-dir .skillcheck
+      - name: Probe safe sample
+        run: |
+          SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe examples/safe_brand_guidelines --output-dir .skillcheck --exec
+      - name: Lint risky sample (expected failure)
+        run: |
+          if python -m skillcheck.cli lint examples/risky_net_egress --output-dir .skillcheck; then
+            echo "Expected lint command to fail for risky skill" >&2
+            exit 1
+          fi
+      - name: Probe risky sample (expected failure)
+        run: |
+          if SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe examples/risky_net_egress --output-dir .skillcheck --exec; then
+            echo "Expected probe command to fail for risky skill" >&2
+            exit 1
+          fi
+      - name: Aggregate report
+        run: python -m skillcheck.cli report . --artifacts .skillcheck
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: skillcheck-artifacts
+          path: |
+            .skillcheck/*.json
+            .skillcheck/results.*
+            .skillcheck/*.png

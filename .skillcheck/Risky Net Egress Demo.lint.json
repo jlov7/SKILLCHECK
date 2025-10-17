@@ -1,0 +1,43 @@
+{
+  "skill": {
+    "name": "Risky Net Egress Demo",
+    "version": "0.1.0"
+  },
+  "summary": {
+    "files_scanned": 4,
+    "issue_count": 5,
+    "violations_count": 5
+  },
+  "issues": [
+    {
+      "code": "forbidden_pattern_2",
+      "message": "Raw network call via curl (HTTP/HTTPS) is forbidden without allowlist",
+      "path": "SKILL.md",
+      "severity": "error"
+    },
+    {
+      "code": "forbidden_pattern_4",
+      "message": "Python network call via urllib.request is forbidden without allowlist",
+      "path": "SKILL.md",
+      "severity": "error"
+    },
+    {
+      "code": "PATH_TRAVERSAL",
+      "message": "Relative path traversal detected ('../'); writes must stay within allowed globs.",
+      "path": "SKILL.md",
+      "severity": "error"
+    },
+    {
+      "code": "PATH_TRAVERSAL",
+      "message": "Relative path traversal detected ('../'); writes must stay within allowed globs.",
+      "path": "scripts/do_egress.py",
+      "severity": "error"
+    },
+    {
+      "code": "forbidden_pattern_2",
+      "message": "Raw network call via curl (HTTP/HTTPS) is forbidden without allowlist",
+      "path": "scripts/unsafe_shell.sh",
+      "severity": "error"
+    }
+  ]
+}
