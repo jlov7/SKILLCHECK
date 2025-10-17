@@ -950,3 +950,342 @@ The repository should now display all the files properly on GitHub, giving visit
 
 ---
 
+_**User (2025-10-17 18:13Z)**_
+
+Why is the actual repo inside the skillcheck folder and not the root? Please remove previous commits and do this properly!! All files in the 'skillcheck' subfolder should be in the root shouldn't they? Otherwise nothing appears and no readme foind etc.
+
+---
+
+_**Assistant (code-supernova-1-million)**_
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls -la
+```
+
+```
+total 8
+drwxr-xr-x   6 jasonlovell  staff  192 Oct 17 15:28 .
+drwxr-xr-x  14 jasonlovell  staff  448 Oct 17 13:32 ..
+-rw-r--r--@  1 jasonlovell  staff  110 Oct 17 13:13 .cursorindexingignore
+drwxr-xr-x@ 13 jasonlovell  staff  416 Oct 17 15:31 .git
+drwxr-xr-x@  5 jasonlovell  staff  160 Oct 17 13:13 .specstory
+drwxr-xr-x@ 15 jasonlovell  staff  480 Oct 17 15:03 skillcheck
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && mv skillcheck/* . && mv skillcheck/.* . 2>/dev/null || true
+```
+
+```
+mv: rename skillcheck/skillcheck to ./skillcheck: Directory not empty
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && find skillcheck -type f | head -10
+```
+
+```
+skillcheck/.pytest_cache/CACHEDIR.TAG
+skillcheck/.pytest_cache/README.md
+skillcheck/.pytest_cache/.gitignore
+skillcheck/.pytest_cache/v/cache/nodeids
+skillcheck/.pytest_cache/v/cache/lastfailed
+skillcheck/.pytest_cache/v/cache/stepwise
+skillcheck/.skillcheck/Risky Net Egress Demo.probe.json
+skillcheck/.skillcheck/results.json
+skillcheck/.skillcheck/Brand Voice Editor (Safe Demo).sbom.json
+skillcheck/.skillcheck/brand-voice-editor-safe-demo.lint.json
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls skillcheck/
+```
+
+```
+skillcheck
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls -la skillcheck/
+```
+
+```
+total 8
+drwxr-xr-x@  7 jasonlovell  staff  224 Oct 17 15:33 .
+drwxr-xr-x  14 jasonlovell  staff  448 Oct 17 15:33 ..
+drwxr-xr-x@  3 jasonlovell  staff   96 Oct 17 13:23 .github
+-rw-r--r--@  1 jasonlovell  staff  135 Oct 17 15:32 .gitignore
+drwxr-xr-x@  6 jasonlovell  staff  192 Oct 17 13:24 .pytest_cache
+drwxr-xr-x@ 15 jasonlovell  staff  480 Oct 17 14:17 .skillcheck
+drwxr-xr-x@ 16 jasonlovell  staff  512 Oct 17 14:23 skillcheck
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && mv skillcheck/.github . && mv skillcheck/.gitignore . && mv skillcheck/.pytest_cache . && mv skillcheck/.skillcheck .
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls skillcheck/skillcheck/
+```
+
+```
+__init__.py
+__pycache__
+_sandbox_runner.py
+attest.py
+bundle.py
+cli.py
+lint_rules.py
+otel.py
+policies
+probe.py
+report.py
+sbom.py
+schema.py
+utils.py
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls -la skillcheck/
+```
+
+```
+total 0
+drwxr-xr-x@  3 jasonlovell  staff   96 Oct 17 15:34 .
+drwxr-xr-x  18 jasonlovell  staff  576 Oct 17 15:34 ..
+drwxr-xr-x@ 16 jasonlovell  staff  512 Oct 17 14:23 skillcheck
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && rm -rf .git
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls -la
+```
+
+```
+total 80
+drwxr-xr-x  17 jasonlovell  staff    544 Oct 17 15:34 .
+drwxr-xr-x  14 jasonlovell  staff    448 Oct 17 13:32 ..
+-rw-r--r--@  1 jasonlovell  staff    110 Oct 17 13:13 .cursorindexingignore
+drwxr-xr-x@  3 jasonlovell  staff     96 Oct 17 13:23 .github
+-rw-r--r--@  1 jasonlovell  staff    135 Oct 17 15:32 .gitignore
+drwxr-xr-x@  6 jasonlovell  staff    192 Oct 17 13:24 .pytest_cache
+drwxr-xr-x@ 15 jasonlovell  staff    480 Oct 17 14:17 .skillcheck
+drwxr-xr-x@  5 jasonlovell  staff    160 Oct 17 13:13 .specstory
+-rw-r--r--@  1 jasonlovell  staff  11357 Oct 17 13:17 LICENSE
+-rw-r--r--@  1 jasonlovell  staff  12042 Oct 17 15:03 README.md
+drwxr-xr-x@  7 jasonlovell  staff    224 Oct 17 15:02 docs
+drwxr-xr-x@  4 jasonlovell  staff    128 Oct 17 14:14 examples
+-rw-r--r--@  1 jasonlovell  staff   1440 Oct 17 13:17 pyproject.toml
+drwxr-xr-x@  3 jasonlovell  staff     96 Oct 17 15:34 skillcheck
+drwxr-xr-x@  8 jasonlovell  staff    256 Oct 17 15:01 skillcheck.egg-info
+drwxr-xr-x@ 10 jasonlovell  staff    320 Oct 17 14:16 tests
+-rw-r--r--@  1 jasonlovell  staff    320 Oct 17 14:20 utils.py
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls skillcheck/skillcheck/
+```
+
+```
+__init__.py
+__pycache__
+_sandbox_runner.py
+attest.py
+bundle.py
+cli.py
+lint_rules.py
+otel.py
+policies
+probe.py
+report.py
+sbom.py
+schema.py
+utils.py
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls -la skillcheck/
+```
+
+```
+total 0
+drwxr-xr-x@  3 jasonlovell  staff   96 Oct 17 15:34 .
+drwxr-xr-x  17 jasonlovell  staff  544 Oct 17 15:34 ..
+drwxr-xr-x@ 16 jasonlovell  staff  512 Oct 17 14:23 skillcheck
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && mv skillcheck/skillcheck/* skillcheck/ && rmdir skillcheck/skillcheck
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && rmdir skillcheck
+```
+
+```
+rmdir: skillcheck: Directory not empty
+
+```
+
+---
+
+
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/jasonlovell/AI/Work\ Prototypes/SKILLCHECK && ls -la skillcheck/
+```
+
+```
+total 168
+drwxr-xr-x@ 16 jasonlovell  staff    512 Oct 17 15:34 .
+drwxr-xr-x  17 jasonlovell  staff    544 Oct 17 15:34 ..
+-rw-r--r--@  1 jasonlovell  staff    898 Oct 17 14:22 __init__.py
+drwxr-xr-x@ 14 jasonlovell  staff    448 Oct 17 15:04 __pycache__
+-rw-r--r--@  1 jasonlovell  staff   8607 Oct 17 13:39 _sandbox_runner.py
+-rw-r--r--@  1 jasonlovell  staff   3793 Oct 17 14:21 attest.py
+-rw-r--r--@  1 jasonlovell  staff   1643 Oct 17 14:11 bundle.py
+-rw-r--r--@  1 jasonlovell  staff  10372 Oct 17 15:03 cli.py
+-rw-r--r--@  1 jasonlovell  staff   5252 Oct 17 13:21 lint_rules.py
+-rw-r--r--@  1 jasonlovell  staff   2022 Oct 17 13:35 otel.py
+drwxr-xr-x@  5 jasonlovell  staff    160 Oct 17 13:38 policies
+-rw-r--r--@  1 jasonlovell  staff  11315 Oct 17 13:34 probe.py
+-rw-r--r--@  1 jasonlovell  staff   7891 Oct 17 14:16 report.py
+-rw-r--r--@  1 jasonlovell  staff   1447 Oct 17 13:21 sbom.py
+-rw-r--r--@  1 jasonlovell  staff   7284 Oct 17 13:39 schema.py
+-rw-r--r--@  1 jasonlovell  staff    320 Oct 17 14:23 utils.py
+
+```
+
+---
+
+
+
+---
+
