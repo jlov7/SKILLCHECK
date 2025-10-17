@@ -13,7 +13,7 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Any, cast
 from urllib.parse import urlparse
 
 VIOLATIONS: List[dict] = []
@@ -110,7 +110,6 @@ def _apply_network_guard(allow_hosts: List[str]) -> None:
         return host_lower in allowed_netlocs
 
     original_create_connection = socket.create_connection
-    original_socket = socket.socket
 
     def sandbox_create_connection(*args, **kwargs):
         address = args[0]
@@ -132,8 +131,9 @@ def _apply_network_guard(allow_hosts: List[str]) -> None:
             return super().connect(address)
 
     sandbox_create_connection.__name__ = "create_connection"  # type: ignore[attr-defined]
-    socket.create_connection = sandbox_create_connection  # type: ignore[assignment]
-    socket.socket = GuardedSocket  # type: ignore[assignment]
+    socket_module = cast(Any, socket)
+    socket_module.create_connection = sandbox_create_connection
+    socket_module.socket = GuardedSocket
 
     try:
         import urllib.request  # type: ignore
@@ -167,7 +167,7 @@ def _apply_network_guard(allow_hosts: List[str]) -> None:
                 raise SandboxViolation("network", detail)
             return original_request(self, method, url, *args, **kwargs)
 
-        requests.sessions.Session.request = sandbox_request  # type: ignore[assignment]
+        cast(Any, requests.sessions.Session).request = sandbox_request
     except Exception:  # pragma: no cover - optional dependency
         pass
 
@@ -178,15 +178,13 @@ def _apply_subprocess_guard() -> None:
     except Exception:  # pragma: no cover - optional dependency
         return
 
-    original_popen = subprocess.Popen
-
     class SandboxPopen(subprocess.Popen):  # type: ignore[misc]
         def __init__(self, *args, **kwargs):
             detail = f"subprocess execution blocked: {args[0] if args else 'unknown'}"
             _record("subprocess", detail)
             raise SandboxViolation("subprocess", detail)
 
-    subprocess.Popen = SandboxPopen  # type: ignore[assignment]
+    cast(Any, subprocess).Popen = SandboxPopen
 
 
 def main() -> None:

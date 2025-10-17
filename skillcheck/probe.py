@@ -198,7 +198,13 @@ class ProbeRunner:
             if not isinstance(payload, dict):
                 notes.append(f"Sandbox returned invalid payload for {rel}")
                 continue
-            for violation in payload.get("violations", []):
+            payload_dict: Dict[str, object] = payload
+            violations = payload_dict.get("violations")
+            if isinstance(violations, list):
+                violation_items = violations
+            else:
+                violation_items = []
+            for violation in violation_items:
                 category = violation.get("category")
                 detail = violation.get("detail", "")
                 if category == "network":
@@ -217,12 +223,14 @@ class ProbeRunner:
                     )
                 else:
                     notes.append(f"{rel}: sandbox noted {category} -> {detail}")
-            if payload.get("stdout"):
-                snippet = payload["stdout"].strip()
+            stdout_val = payload_dict.get("stdout")
+            if isinstance(stdout_val, str) and stdout_val.strip():
+                snippet = stdout_val.strip()
                 if snippet:
                     notes.append(f"{rel} stdout: {snippet[:200]}")
-            if outcome.get("stderr"):
-                stderr_snippet = outcome["stderr"].strip()
+            stderr_val = outcome.get("stderr")
+            if isinstance(stderr_val, str):
+                stderr_snippet = stderr_val.strip()
                 if stderr_snippet:
                     notes.append(f"{rel} stderr: {stderr_snippet[:200]}")
         return egress, writes, notes

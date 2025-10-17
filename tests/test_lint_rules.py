@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from skillcheck.bundle import open_skill_bundle
 from skillcheck.lint_rules import run_lint
 from skillcheck.schema import load_policy

@@ -6,7 +6,7 @@ import json
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
 def _hash_file(path: Path) -> str:
@@ -19,7 +19,7 @@ def _hash_file(path: Path) -> str:
 
 def generate_sbom(skill_path: Path, output_path: Path) -> Path:
     """Generate a minimal SPDX-style SBOM for the Skill directory."""
-    files: List[Dict[str, str]] = []
+    files: List[Dict[str, Any]] = []
     for file_path in sorted(skill_path.rglob("*")):
         if file_path.is_file():
             relative = str(file_path.relative_to(skill_path))

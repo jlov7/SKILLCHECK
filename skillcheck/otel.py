@@ -3,18 +3,47 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Sequence, Union, cast
 
-try:
-    from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+trace: Any
+Resource: Any
+TracerProvider: Any
+BatchSpanProcessor: Any
+ConsoleSpanExporter: Any
 
+try:  # pragma: no cover - optional dependency
+    from opentelemetry import trace as _trace  # type: ignore[import]
+    from opentelemetry.sdk.resources import Resource as _Resource  # type: ignore[import]
+    from opentelemetry.sdk.trace import TracerProvider as _TracerProvider  # type: ignore[import]
+    from opentelemetry.sdk.trace.export import (  # type: ignore[import]
+        BatchSpanProcessor as _BatchSpanProcessor,
+        ConsoleSpanExporter as _ConsoleSpanExporter,
+    )
+
+    trace = _trace
+    Resource = _Resource
+    TracerProvider = _TracerProvider
+    BatchSpanProcessor = _BatchSpanProcessor
+    ConsoleSpanExporter = _ConsoleSpanExporter
     _OTEL_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
-    trace = None
+except Exception:
+    trace = cast(Any, None)
+    Resource = cast(Any, None)
+    TracerProvider = cast(Any, None)
+    BatchSpanProcessor = cast(Any, None)
+    ConsoleSpanExporter = cast(Any, None)
     _OTEL_AVAILABLE = False
+
+AttributeValue = Union[
+    str,
+    bool,
+    int,
+    float,
+    Sequence[str],
+    Sequence[bool],
+    Sequence[int],
+    Sequence[float],
+]
 
 _TRACER = None
 
@@ -33,7 +62,7 @@ def _ensure_tracer() -> Optional["trace.Tracer"]:
             processors.append(ConsoleSpanExporter())
         elif exporter_pref == "otlp":
             try:  # pragma: no cover - optional dependency
-                from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+                from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter  # type: ignore[import]
 
                 processors.append(OTLPSpanExporter())
             except Exception:
@@ -47,7 +76,7 @@ def _ensure_tracer() -> Optional["trace.Tracer"]:
     return _TRACER
 
 
-def emit_run_span(name: str, skill_name: str, attributes: Dict[str, object]) -> bool:
+def emit_run_span(name: str, skill_name: str, attributes: Dict[str, AttributeValue]) -> bool:
     """Emit a span if OpenTelemetry is available."""
     tracer = _ensure_tracer()
     if tracer is None:

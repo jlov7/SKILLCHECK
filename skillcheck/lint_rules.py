@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
-from .schema import Policy, SkillValidationError, load_skill_metadata
+from .schema import Policy, SkillValidationError, load_policy, load_skill_metadata
 
 SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*[^\s]+")
 PATH_TRAVERSAL_PATTERN = re.compile(r"\.\./|\.\.\\\\")

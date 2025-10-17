@@ -1,6 +1,6 @@
-# SKILLCHECK
+# SKILLCHECK (research preview)
 
-SKILLCHECK is a safety-first auditor for [Claude Skills][anthropic-skills]. It gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on.
+SKILLCHECK is a safety-first auditor for [Claude Skills][anthropic-skills]. Inspired by Anthropic’s [Introducing Agent Skills announcement][anthropic-announcement] and the official Skill templates, it gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on. This project is non-commercial and offered as a research preview for the community.
 
 - **One-click confidence** – Run a single CLI command to lint, probe, and attest a Skill.
 - **Actionable evidence** – Human-friendly Markdown reports, automation-ready JSON, and signed attestations.
@@ -47,8 +47,8 @@ SKILLCHECK is a safety-first auditor for [Claude Skills][anthropic-skills]. It g
 
 ### 2. Install
 ```bash
-git clone https://github.com/example/skillcheck.git
-cd skillcheck
+git clone https://github.com/jlov7/SKILLCHECK.git
+cd SKILLCHECK
 python -m pip install -e .[dev]
 ```
 
@@ -62,12 +62,15 @@ python -m skillcheck.cli probe examples/safe_brand_guidelines
 python -m skillcheck.cli report . --fail-on-failures
 ```
 
+> Prefer shorter commands? Installing the project also registers a `skillcheck` console script (e.g. `skillcheck lint …`). Use whichever style fits your workflow.
+
 ### 4. Optional extras
 - Audit zipped bundles: `python -m skillcheck.cli lint path/to/skill_bundle.zip`
 - Exercise the sandbox: `SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe <bundle> --exec`
 - Generate SBOM + attestation: `python -m skillcheck.cli attest <bundle>`
 - Print a quick PASS/FAIL table: `python -m skillcheck.cli report . --summary`
 - Open a ready-made example: [`docs/sample-results.md`](docs/sample-results.md)
+- Review golden demo artifacts: [`docs/artifacts/`](docs/artifacts)
 
 > **Tip:** non-technical reviewers can open `.skillcheck/results.md`; automation can ingest `.skillcheck/results.json`.
 
@@ -115,13 +118,14 @@ Need a visual? See [`docs/sample-results.md`](docs/sample-results.md).
    - Supports waivers with justification for rare exceptions.
 2. **Dynamic probe**
    - Scans scripts for egress/write patterns.
-   - Optional sandbox execution blocks unauthorized sockets, subprocesses, and writes in real time.
+   - Optional sandbox execution blocks unauthorized sockets, subprocesses, and writes in real time (supported on macOS & Linux; Windows currently uses static probing unless you supply a sandbox).
    - Captures `EGRESS_SANDBOX`/`WRITE_SANDBOX` findings for accountability.
 3. **SBOM + attestation**
    - Produces SPDX-style `sbom.json` with SHA-256 digests.
    - Generates attestation JSON citing policy hash, lint/probe summaries, and optional Sigstore signature.
 4. **Telemetry (opt-in)**
-   - With `opentelemetry-sdk` and `SKILLCHECK_OTEL_EXPORTER` set, emits spans using [GenAI semantic conventions][otel-ai].
+   - With `opentelemetry-sdk` and `SKILLCHECK_OTEL_EXPORTER` set, emits spans using [GenAI & Agent semantic conventions][otel-ai] (still evolving—pin the version of the spec you target).
+   - Architecture choices mirror Anthropic’s [engineering deep dive][anthropic-engineering] recommendations around progressive disclosure and provenance.
 
 ---
 
@@ -230,6 +234,7 @@ See also: [Reviewer walkthrough](docs/reviewer-walkthrough.md) and [Engineer wal
 - [Finding remediation guide](docs/finding-remediation.md)
 - [Reviewer walkthrough](docs/reviewer-walkthrough.md)
 - [Engineer walkthrough](docs/engineer-walkthrough.md)
+- [Security policy](SECURITY.md)
 
 ---
 
@@ -251,4 +256,6 @@ Apache-2.0. See [LICENSE](LICENSE).
 
 [anthropic-skills]: https://docs.anthropic.com/en/docs/skills/overview
 [anthropic-prompts]: https://docs.anthropic.com/en/docs/build-with-claude/prompting
+[anthropic-announcement]: https://www.anthropic.com/news/introducing-agent-skills
+[anthropic-engineering]: https://www.anthropic.com/news/engineering-deep-dive-agent-skills
 [otel-ai]: https://opentelemetry.io/docs/specs/semconv/gen-ai

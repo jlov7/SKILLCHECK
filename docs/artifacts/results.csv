@@ -1,0 +1,3 @@
+skill_name,skill_version,lint_violations,lint_issues,probe_egress,probe_disallowed_writes,status
+"Brand Voice Editor (Safe Demo)","1.0.0",0,0,0,0,pass
+"Risky Net Egress Demo","0.1.0",5,5,5,2,fail

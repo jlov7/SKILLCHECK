@@ -32,8 +32,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/example/skillcheck"
-Documentation = "https://github.com/example/skillcheck#readme"
+Homepage = "https://github.com/jlov7/SKILLCHECK"
+Documentation = "https://github.com/jlov7/SKILLCHECK#readme"
 
 [project.scripts]
 skillcheck = "skillcheck.cli:main"
@@ -52,7 +52,8 @@ attest = [
 dev = [
   "pytest>=7.4",
   "ruff>=0.4.0",
-  "mypy>=1.8.0"
+  "mypy>=1.8.0",
+  "types-PyYAML>=6.0.12"
 ]
 
 [tool.setuptools.packages.find]
@@ -62,3 +63,12 @@ where = ["."]
 minversion = "7.0"
 addopts = "-ra"
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_return_any = false
+no_implicit_optional = true
+show_error_codes = true
+disable_error_code = ["import-untyped"]

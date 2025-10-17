@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import dataclasses
 import fnmatch
 import hashlib
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, ValidationError, field_validator
