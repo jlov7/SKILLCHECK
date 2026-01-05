@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import json
 import os
@@ -14,24 +15,48 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from .schema import Policy, load_skill_metadata
+from .schema import Policy, parse_skill_metadata
 
-EGRESS_PATTERNS = [
-    ("curl_http", re.compile(r"\bcurl\s+(?P<url>https?://[^\s'\"`]+)")),
+PYTHON_EGRESS_PATTERNS = [
     ("requests_call", re.compile(r"requests\.(?:get|post|delete|put)\(\s*['\"](?P<url>https?://[^'\"]+)")),
     ("urllib_urlopen", re.compile(r"urlopen\(\s*['\"](?P<url>https?://[^'\"]+)")),
     ("httpx_client", re.compile(r"httpx\.\w+\(\s*['\"](?P<url>https?://[^'\"]+)")),
 ]
+JS_EGRESS_PATTERNS = [
+    ("fetch_call", re.compile(r"\bfetch\(\s*['\"](?P<url>https?://[^'\"]+)")),
+    ("axios_call", re.compile(r"\baxios\.(?:get|post|delete|put|patch)\(\s*['\"](?P<url>https?://[^'\"]+)")),
+    ("node_http", re.compile(r"\bhttps?\.request\(\s*['\"](?P<url>https?://[^'\"]+)")),
+]
+SHELL_EGRESS_PATTERNS = [
+    ("curl_http", re.compile(r"\bcurl\s+(?P<url>https?://[^\s'\"`]+)")),
+    ("wget_http", re.compile(r"\bwget\s+(?P<url>https?://[^\s'\"`]+)")),
+]
+POWERSHELL_EGRESS_PATTERNS = [
+    ("powershell_webrequest", re.compile(r"\bInvoke-(?:WebRequest|RestMethod)\s+-Uri\s+(?P<url>https?://[^\s'\"`]+)", re.IGNORECASE)),
+]
 
-WRITE_PATTERNS = [
-    ("open_write", re.compile(r"open\(\s*['\"](?P<path>[^'\"]+)['\"],\s*['\"]w")),
+PYTHON_WRITE_PATTERNS = [
+    ("open_write", re.compile(r"open\(\s*['\"](?P<path>[^'\"]+)['\"]\s*,\s*['\"][^'\"]*[wax+][^'\"]*['\"]")),
     ("path_write_text", re.compile(r"Path\(\s*['\"](?P<path>[^'\"]+)['\"]\)\.write_text")),
     ("path_write_bytes", re.compile(r"Path\(\s*['\"](?P<path>[^'\"]+)['\"]\)\.write_bytes")),
     ("os_remove", re.compile(r"os\.remove\(\s*['\"](?P<path>[^'\"]+)['\"]\)")),
 ]
+JS_WRITE_PATTERNS = [
+    ("fs_writefile", re.compile(r"fs(?:\.promises)?\.writeFile(?:Sync)?\(\s*['\"](?P<path>[^'\"]+)")),
+    ("fs_appendfile", re.compile(r"fs(?:\.promises)?\.appendFile(?:Sync)?\(\s*['\"](?P<path>[^'\"]+)")),
+    ("fs_writestream", re.compile(r"fs\.createWriteStream\(\s*['\"](?P<path>[^'\"]+)")),
+]
+SHELL_WRITE_PATTERNS = [
+    ("shell_redirect", re.compile(r"(?:^|\\s)(?:>>|>)\\s*(?P<path>[^\\s&;|]+)")),
+    ("shell_tee", re.compile(r"\\btee\\s+(?P<path>[^\\s]+)")),
+]
 
 SANDBOX_MODULE = "skillcheck._sandbox_runner"
 DEFAULT_EXEC_GLOBS = ["scripts/**/*.py", "*.py"]
+IGNORE_DIRS = {".git", ".skillcheck", "__pycache__", "node_modules"}
+JS_EXTENSIONS = {".js", ".ts", ".mjs", ".cjs"}
+SHELL_EXTENSIONS = {".sh", ".bash", ".zsh", ".ksh", ".cmd", ".bat"}
+POWERSHELL_EXTENSIONS = {".ps1", ".psm1"}
 
 
 @dataclass
@@ -90,11 +115,15 @@ class ProbeRunner:
         self.exec_timeout = float(probe_cfg.get("timeout", 5))
 
     def run(self, skill_path: Path) -> ProbeResult:
-        metadata, _ = load_skill_metadata(skill_path, self.policy)
+        parse_result = parse_skill_metadata(skill_path, self.policy)
+        metadata = parse_result.metadata
         files_loaded = 0
         egress_findings: List[ProbeFinding] = []
         write_findings: List[ProbeFinding] = []
         notes: List[str] = []
+        if parse_result.issues:
+            for issue in parse_result.issues:
+                notes.append(f"Schema issue {issue.code}: {issue.message}")
 
         for rel_path, text in self._iter_text_files(skill_path):
             if self.policy.is_read_allowed(rel_path):
@@ -111,7 +140,7 @@ class ProbeRunner:
             notes.extend(exec_notes)
 
         return ProbeResult(
-            skill_name=metadata.name,
+            skill_name=metadata.name or skill_path.name,
             skill_version=metadata.version,
             files_loaded_count=files_loaded,
             egress_attempts=egress_findings,
@@ -122,6 +151,8 @@ class ProbeRunner:
 
     def _iter_text_files(self, skill_path: Path) -> Iterable[tuple[str, str]]:
         for file_path in sorted(skill_path.rglob("*")):
+            if any(part in IGNORE_DIRS for part in file_path.parts):
+                continue
             if not file_path.is_file():
                 continue
             try:
@@ -133,7 +164,18 @@ class ProbeRunner:
 
     def _detect_egress(self, rel_path: str, text: str) -> List[ProbeFinding]:
         findings: List[ProbeFinding] = []
-        for code, pattern in EGRESS_PATTERNS:
+        ext = Path(rel_path).suffix.lower()
+        in_scripts = rel_path.startswith("scripts/")
+        patterns: List[Tuple[str, re.Pattern[str]]] = []
+        if ext == ".py" or in_scripts:
+            patterns.extend(PYTHON_EGRESS_PATTERNS)
+        if ext in JS_EXTENSIONS or in_scripts:
+            patterns.extend(JS_EGRESS_PATTERNS)
+        if ext in SHELL_EXTENSIONS or in_scripts:
+            patterns.extend(SHELL_EGRESS_PATTERNS)
+        if ext in POWERSHELL_EXTENSIONS or in_scripts:
+            patterns.extend(POWERSHELL_EGRESS_PATTERNS)
+        for code, pattern in patterns:
             for match in pattern.finditer(text):
                 url = match.groupdict().get("url", "")
                 host_allowed = self._host_allowed(url)
@@ -153,11 +195,31 @@ class ProbeRunner:
         if not parsed.netloc:
             return False
         host = f"{parsed.scheme}://{parsed.netloc}"
-        return host in set(self.policy.allow_network_hosts)
+        if not self.policy.allow_network_hosts:
+            return False
+        for pattern in self.policy.allow_network_hosts:
+            if not pattern:
+                continue
+            if "://" in pattern:
+                if fnmatch.fnmatch(host, pattern):
+                    return True
+            else:
+                if fnmatch.fnmatch(parsed.netloc, pattern):
+                    return True
+        return False
 
     def _detect_writes(self, rel_path: str, text: str) -> List[ProbeFinding]:
         findings: List[ProbeFinding] = []
-        for code, pattern in WRITE_PATTERNS:
+        ext = Path(rel_path).suffix.lower()
+        in_scripts = rel_path.startswith("scripts/")
+        patterns: List[Tuple[str, re.Pattern[str]]] = []
+        if ext == ".py" or in_scripts:
+            patterns.extend(PYTHON_WRITE_PATTERNS)
+        if ext in JS_EXTENSIONS or in_scripts:
+            patterns.extend(JS_WRITE_PATTERNS)
+        if ext in SHELL_EXTENSIONS or in_scripts:
+            patterns.extend(SHELL_WRITE_PATTERNS)
+        for code, pattern in patterns:
             for match in pattern.finditer(text):
                 target = match.groupdict().get("path", "")
                 normalized = target.strip()
@@ -168,6 +230,14 @@ class ProbeRunner:
                         ProbeFinding(
                             code=f"WRITE_{code.upper()}",
                             message=f"{rel_path}: attempt to access {normalized} escapes skill root",
+                        )
+                    )
+                    continue
+                if normalized.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:\\\\", normalized):
+                    findings.append(
+                        ProbeFinding(
+                            code=f"WRITE_{code.upper()}",
+                            message=f"{rel_path}: absolute path write to {normalized} blocked",
                         )
                     )
                     continue

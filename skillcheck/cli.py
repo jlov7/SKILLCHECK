@@ -24,7 +24,7 @@ from .utils import slugify
 
 app = typer.Typer(
     add_completion=False,
-    help="Audit Claude Skill bundles with lint, probe, attest, and report commands.",
+    help="Audit Agent Skills bundles with lint, probe, attest, and report commands.",
 )
 
 console = Console()

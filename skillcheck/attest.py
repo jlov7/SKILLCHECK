@@ -11,7 +11,7 @@ from typing import Dict, Optional
 
 from .lint_rules import LintReport
 from .probe import ProbeResult
-from .schema import Policy, policy_summary
+from .schema import Policy, parse_skill_metadata, policy_summary
 from .utils import slugify
 
 
@@ -78,6 +78,8 @@ class AttestationBuilder:
     ) -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
         stem = artifact_stem or slugify(lint_report.skill_name)
+        parsed = parse_skill_metadata(skill_path, self.policy)
+        skill_meta = parsed.metadata
         payload = {
             "schemaVersion": "1.0",
             "generatedAt": datetime.now(timezone.utc).isoformat(),
@@ -85,6 +87,14 @@ class AttestationBuilder:
                 "name": lint_report.skill_name,
                 "version": lint_report.skill_version,
                 "path": source_path or str(skill_path),
+                "license": skill_meta.license,
+                "compatibility": skill_meta.compatibility,
+                "allowed_tools": skill_meta.allowed_tools,
+                "metadata": skill_meta.metadata,
+            },
+            "spec": {
+                "name": "Agent Skills",
+                "url": "https://agentskills.io/specification",
             },
             "policy": policy_summary(self.policy),
             "lint": lint_report.to_dict(),

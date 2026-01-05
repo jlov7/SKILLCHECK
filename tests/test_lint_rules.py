@@ -6,11 +6,11 @@ from skillcheck.schema import load_policy
 
 
 def _make_skill(tmp_path: Path, body: str) -> Path:
-    skill_dir = tmp_path / "skill"
+    skill_dir = tmp_path / "secret-skill"
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_text(
         f"""---
-name: "Secret Skill"
+name: secret-skill
 description: "Demo skill for lint testing."
 ---
 
@@ -30,7 +30,7 @@ def test_lint_detects_secret(tmp_path: Path) -> None:
 
 def test_lint_flags_forbidden_patterns() -> None:
     project_root = Path(__file__).resolve().parents[1]
-    skill_dir = project_root / "examples" / "risky_net_egress"
+    skill_dir = project_root / "examples" / "risky-net-egress"
     report = run_lint(skill_dir, load_policy())
     codes = {issue.code for issue in report.issues}
     assert "forbidden_pattern_2" in codes  # curl http
@@ -38,7 +38,7 @@ def test_lint_flags_forbidden_patterns() -> None:
 
 
 def test_lint_accepts_zip(make_skill_zip) -> None:
-    archive = make_skill_zip("safe_brand_guidelines")
+    archive = make_skill_zip("brand-voice-editor")
     with open_skill_bundle(archive) as bundle:
         report = run_lint(bundle, load_policy())
     assert report.ok

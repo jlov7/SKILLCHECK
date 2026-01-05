@@ -1,7 +1,6 @@
 ---
-name: "Risky Net Egress Demo"
-description: "Demonstrates bad patterns: attempts network egress and writes outside allowed paths; meant to fail SKILLCHECK."
-version: "0.1.0"
+name: risky-net-egress
+description: Demonstrates unsafe patterns for testing audits. Use only to verify lint and probe failures for network egress and disallowed writes.
 ---
 
 # WARNING — Intentionally Risky (for testing)
@@ -15,7 +14,7 @@ This Skill is **designed to fail** policy checks and sandbox probes.
 - `scripts/unsafe_shell.sh` — uses `curl http://example.com` (forbidden by default).
 - `scripts/do_egress.py` — uses `urllib.request.urlopen("https://example.com")` and writes `../outside.txt` (forbidden).
 
-## How Claude might try (do not allow)
+## How an agent might try (do not allow)
 If code execution were enabled, it might invoke:
 ```bash
 bash scripts/unsafe_shell.sh
@@ -27,5 +26,3 @@ SKILLCHECK should:
 
 1. Lint-flag forbidden patterns (`curl http`, `urllib.request`).
 2. Probe-detect attempted egress and write outside allowlist.
-
-```

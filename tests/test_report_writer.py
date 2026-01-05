@@ -14,7 +14,7 @@ def test_report_writer_outputs_json(tmp_path: Path) -> None:
     artifacts.mkdir()
     policy = load_policy()
 
-    safe_dir = project_root / "examples" / "safe_brand_guidelines"
+    safe_dir = project_root / "examples" / "brand-voice-editor"
     lint_report = run_lint(safe_dir, policy)
     probe_report = ProbeRunner(policy).run(safe_dir)
     slug = slugify(lint_report.skill_name)

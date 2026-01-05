@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skillcheck"
-version = "0.1.0"
-description = "Audit, lint, probe, and attest Claude Skills with policy-driven checks."
+version = "0.2.0"
+description = "Audit, lint, probe, and attest Agent Skills with policy-driven checks."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
@@ -25,10 +25,10 @@ classifiers = [
 ]
 dependencies = [
   "typer[all]>=0.9.0",
-  "pydantic>=1.10,<3.0",
   "pyyaml>=6.0",
   "rich>=13.0",
-  "tabulate>=0.9.0"
+  "tabulate>=0.9.0",
+  "tomli>=2.0.0; python_version < '3.11'"
 ]
 
 [project.urls]

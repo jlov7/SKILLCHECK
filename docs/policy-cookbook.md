@@ -5,22 +5,36 @@ SKILLCHECK policies are YAML files with deny-by-default semantics. Use these sni
 ## Base policy (deny egress & writes)
 
 ```yaml
-version: 1
+version: 2
 limits:
   skill_name_max: 64
-  skill_description_max: 200
+  skill_description_max: 1024
+  skill_compatibility_max: 500
+  skill_body_max_lines: 500
+
+frontmatter:
+  allow_unknown_fields: false
+  legacy_fields: []
 
 allow:
   network:
     hosts: []
   filesystem:
     read_globs:
+      - "SKILL.md"
+      - "skill.md"
       - "*.md"
       - "*.txt"
+      - "*.json"
+      - "*.toml"
       - "**/*.md"
       - "**/*.txt"
+      - "**/*.json"
+      - "**/*.toml"
     write_globs:
       - "scratch/**"
+  tools:
+    allowlist: []
 
 dependencies:
   allow_pypi: []
@@ -83,6 +97,19 @@ dependencies:
     - "yaml"
 ```
 
+## Allowing specific tools in `allowed-tools`
+
+```yaml
+allow:
+  tools:
+    allowlist:
+      - "Bash(*)"
+      - "Read"
+      - "Write(scratch/**)"
+```
+
+If the allowlist is empty, `allowed-tools` is accepted but not enforced.
+
 ## Recording a waiver
 
 ```yaml
@@ -99,4 +126,3 @@ Waivers should be rare and always justified; the attestation includes them for a
 - Keep base policies in source control, layer environment-specific overrides via `--policy`.
 - After editing a policy, rerun `python -m skillcheck.cli lint --policy new.policy.yaml ...` to confirm there are no schema errors.
 - Policies are just YAML—consider templating (e.g., with Jinja) for large organizations.
-

@@ -91,23 +91,23 @@ def _apply_fs_guard(skill_root: Path, allow_globs: List[str]) -> None:
 
 
 def _apply_network_guard(allow_hosts: List[str]) -> None:
-    allowed_hosts = set()
-    allowed_netlocs = set()
-    for host in allow_hosts:
-        if not host:
-            continue
-        allowed_hosts.add(host)
-        parsed = urlparse(host)
-        if parsed.netloc:
-            allowed_netlocs.add(parsed.netloc.lower())
+    allowlist = [host for host in allow_hosts if host]
 
-    def _host_allowed(host: str) -> bool:
-        if not allowed_hosts:
+    def _host_allowed(host: str, scheme: str = "") -> bool:
+        if not allowlist:
             return False
-        host_lower = host.lower()
-        if host_lower in allowed_hosts:
-            return True
-        return host_lower in allowed_netlocs
+        for pattern in allowlist:
+            if "://" in pattern:
+                candidate = f"{scheme}://{host}" if scheme else host
+                parsed = urlparse(pattern)
+                if fnmatch.fnmatch(candidate, pattern):
+                    return True
+                if parsed.netloc and fnmatch.fnmatch(host, parsed.netloc):
+                    return True
+            else:
+                if fnmatch.fnmatch(host, pattern):
+                    return True
+        return False
 
     original_create_connection = socket.create_connection
 
@@ -142,8 +142,8 @@ def _apply_network_guard(allow_hosts: List[str]) -> None:
 
         def sandbox_urlopen(url, *args, **kwargs):
             parsed = urlparse(url)
-            host = f"{parsed.scheme}://{parsed.netloc}"
-            if not _host_allowed(host) and not _host_allowed(parsed.netloc):
+            host = parsed.netloc
+            if not _host_allowed(host, parsed.scheme):
                 detail = f"urlopen to {host or url} blocked"
                 _record("network", detail)
                 raise SandboxViolation("network", detail)
@@ -160,8 +160,8 @@ def _apply_network_guard(allow_hosts: List[str]) -> None:
 
         def sandbox_request(self, method, url, *args, **kwargs):
             parsed = urlparse(url)
-            host = f"{parsed.scheme}://{parsed.netloc}"
-            if not _host_allowed(host) and not _host_allowed(parsed.netloc):
+            host = parsed.netloc
+            if not _host_allowed(host, parsed.scheme):
                 detail = f"requests.{method.lower()} to {host or url} blocked"
                 _record("network", detail)
                 raise SandboxViolation("network", detail)

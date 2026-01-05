@@ -1,6 +1,6 @@
 # SKILLCHECK (research preview)
 
-SKILLCHECK is a safety-first auditor for [Claude Skills][anthropic-skills]. Inspired by Anthropic’s [Introducing Agent Skills announcement][anthropic-announcement] and the official Skill templates, it gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on. This repository is personal R&D, not a product or funded roadmap, and is shared “as is” for anyone experimenting with Skills.
+SKILLCHECK is a safety-first auditor for [Agent Skills][agentskills-spec]. Aligned with the open specification and the [skills-ref][skills-ref] reference validator, it gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on. This repository is personal R&D, not a product or funded roadmap, and is shared “as is” for anyone experimenting with Skills.
 
 - **One-click confidence** – Run a single CLI command to lint, probe, and attest a Skill.
 - **Actionable evidence** – Human-friendly Markdown reports, automation-ready JSON, and signed attestations.
@@ -55,8 +55,8 @@ python -m pip install -e .[dev]
 ### 3. Run your first audit
 ```bash
 # Lint + probe the safe sample Skill
-python -m skillcheck.cli lint examples/safe_brand_guidelines
-python -m skillcheck.cli probe examples/safe_brand_guidelines
+python -m skillcheck.cli lint examples/brand-voice-editor
+python -m skillcheck.cli probe examples/brand-voice-editor
 
 # Aggregate results (fails if any Skill fails)
 python -m skillcheck.cli report . --fail-on-failures
@@ -88,8 +88,8 @@ python -m skillcheck.cli report . --fail-on-failures
                                    (Markdown / CSV / JSON + totals)
 ```
 
-1. **Lint** inspects the Skill text: metadata limits, secret sniffing, forbidden patterns, path traversal.
-2. **Probe** scans files for risky code and (optionally) executes Python scripts inside a sandbox that blocks egress and writes.
+1. **Lint** inspects the Skill text: Agent Skills schema rules, secret sniffing, forbidden patterns, path traversal, file references, dependency allowlists, and allowed-tool policy checks.
+2. **Probe** scans files for risky code patterns (Python/JS/shell) and (optionally) executes Python scripts inside a sandbox that blocks egress and writes.
 3. **Attest** hashes every file, generates an SPDX-style SBOM, and records the policy & results in an attestation manifest.
 4. **Report** aggregates everything so reviewers and CI pipelines can make a go/no-go decision quickly.
 
@@ -113,11 +113,12 @@ Need a visual? See [`docs/sample-results.md`](docs/sample-results.md).
 ## How SKILLCHECK keeps you safe
 
 1. **Policy-driven lint** (`skillcheck/policies/default.policy.yaml`)
-   - Enforces metadata limits aligned with [Anthropic guidance][anthropic-prompts].
-   - Flags secrets, shell escapes, path traversal, and custom forbidden patterns.
+   - Enforces Agent Skills schema limits (name/description/compatibility) and naming rules.
+   - Flags secrets, unsafe shell usage, path traversal, unapproved dependencies, and custom forbidden patterns.
+   - Validates `allowed-tools` when a policy allowlist is configured.
    - Supports waivers with justification for rare exceptions.
 2. **Dynamic probe**
-   - Scans scripts for egress/write patterns.
+   - Scans scripts for egress/write patterns in common languages (Python, JS, shell).
    - Optional sandbox execution blocks unauthorized sockets, subprocesses, and writes in real time (supported on macOS & Linux; Windows currently uses static probing unless you supply a sandbox).
    - Captures `EGRESS_SANDBOX`/`WRITE_SANDBOX` findings for accountability.
 3. **SBOM + attestation**
@@ -125,7 +126,7 @@ Need a visual? See [`docs/sample-results.md`](docs/sample-results.md).
    - Generates attestation JSON citing policy hash, lint/probe summaries, and optional Sigstore signature.
 4. **Telemetry (opt-in)**
    - With `opentelemetry-sdk` and `SKILLCHECK_OTEL_EXPORTER` set, emits spans using [GenAI & Agent semantic conventions][otel-ai] (still evolving—pin the version of the spec you target).
-   - Architecture choices mirror Anthropic’s [engineering deep dive][anthropic-engineering] recommendations around progressive disclosure and provenance.
+   - Architecture choices mirror Agent Skills guidance around progressive disclosure and provenance.
 
 ---
 
@@ -133,7 +134,7 @@ Need a visual? See [`docs/sample-results.md`](docs/sample-results.md).
 
 | Stage | Threat addressed | Typical findings | Evidence written |
 | --- | --- | --- | --- |
-| Lint | Prompt injection, secrets, unsafe shell commands | `forbidden_pattern_2 (curl http)`, `SECRET_SUSPECT`, `PATH_TRAVERSAL` | `<skill>.lint.json` |
+| Lint | Prompt injection, secrets, unsafe shell commands | `forbidden_pattern_2 (curl http)`, `SECRET_SUSPECT`, `PATH_TRAVERSAL`, `DEPENDENCY_PYPI`, `REFERENCE_MISSING`, `FRONTMATTER_ALLOWED_TOOLS` | `<skill>.lint.json` |
 | Probe | Hidden runtime egress or writes | `EGRESS_SANDBOX`, `WRITE_SANDBOX`, blocked sockets | `<skill>.probe.json` |
 | SBOM | Hidden payloads, mutable files | SHA-256 digests for every file | `<skill>.sbom.json` |
 | Attestation | Provenance, policy adherence | Policy hash, waivers, optional signature | `<skill>.attestation.json` |
@@ -147,12 +148,12 @@ For remediation tips, consult [`docs/finding-remediation.md`](docs/finding-remed
 
 | Command | Purpose | Useful flags |
 | --- | --- | --- |
-| `skillcheck lint <path>` | Static analysis (schema, secrets, forbidden patterns). | `--policy` to supply a custom policy. |
+| `skillcheck lint <path>` | Static analysis (schema, secrets, forbidden patterns, dependencies). | `--policy` to supply a custom policy. |
 | `skillcheck probe <path>` | Dynamic heuristics + optional sandbox execution. | `--exec` or `SKILLCHECK_PROBE_EXEC=1` to force sandboxing. |
 | `skillcheck attest <path>` | Runs lint + probe and emits SBOM + attestation. | Install `[attest]` extras to enable Sigstore signing. |
 | `skillcheck report <run-dir>` | Aggregates previous runs into CSV/MD/JSON. | `--fail-on-failures` to exit non-zero on FAIL; `--artifacts <dir>` to read from another folder; `--summary` for a quick terminal table. |
 
-All commands accept either directories or `.zip` bundles containing `SKILL.md`.
+All commands accept either directories or `.zip` bundles containing `SKILL.md` (or `skill.md`).
 
 ---
 
@@ -254,8 +255,6 @@ Apache-2.0. See [LICENSE](LICENSE).
 
 ---
 
-[anthropic-skills]: https://docs.anthropic.com/en/docs/skills/overview
-[anthropic-prompts]: https://docs.anthropic.com/en/docs/build-with-claude/prompting
-[anthropic-announcement]: https://www.anthropic.com/news/introducing-agent-skills
-[anthropic-engineering]: https://www.anthropic.com/news/engineering-deep-dive-agent-skills
+[agentskills-spec]: https://agentskills.io/specification
+[skills-ref]: https://github.com/agentskills/agentskills/tree/main/skills-ref
 [otel-ai]: https://opentelemetry.io/docs/specs/semconv/gen-ai

@@ -1,8 +1,16 @@
 # Default policy for SKILLCHECK (deny-by-default, safe lower-bounds)
-version: 1
+version: 2
 limits:
   skill_name_max: 64
-  skill_description_max: 200
+  skill_description_max: 1024
+  skill_compatibility_max: 500
+  skill_body_max_lines: 500
+
+frontmatter:
+  # Enforce the Agent Skills spec. Set to true to allow extra fields.
+  allow_unknown_fields: false
+  # Optional legacy fields to tolerate (treated as warnings if present).
+  legacy_fields: []
 
 allow:
   network:
@@ -11,17 +19,29 @@ allow:
   filesystem:
     # Read-only by default; these globs allow typical Skill content to be read.
     read_globs:
+      - "SKILL.md"
+      - "skill.md"
       - "*.md"
       - "*.txt"
       - "*.yaml"
       - "*.yml"
+      - "*.json"
+      - "*.toml"
       - "**/*.md"
       - "**/*.txt"
       - "**/*.yaml"
       - "**/*.yml"
+      - "**/*.json"
+      - "**/*.toml"
+      - "scripts/**"
+      - "references/**"
+      - "assets/**"
     # Writes are blocked by default; allow only to a scratch area.
     write_globs:
       - "scratch/**"
+  tools:
+    # Tool patterns allowed in SKILL.md allowed-tools (leave empty to skip enforcement).
+    allowlist: []
 
 dependencies:
   # If you permit dependency installation for Skills, list explicit allowlists.

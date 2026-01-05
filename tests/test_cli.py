@@ -14,13 +14,13 @@ runner = CliRunner()
 
 
 def test_cli_lint_zip(make_skill_zip) -> None:
-    archive = make_skill_zip("safe_brand_guidelines")
+    archive = make_skill_zip("brand-voice-editor")
     result = runner.invoke(app, ["lint", str(archive)])
     assert result.exit_code == 0
 
 
 def test_cli_probe_zip_failure(make_skill_zip) -> None:
-    archive = make_skill_zip("risky_net_egress")
+    archive = make_skill_zip("risky-net-egress")
     result = runner.invoke(
         app,
         ["probe", "--exec", str(archive)],
@@ -36,7 +36,7 @@ def test_cli_report_fail_on_failures(tmp_path: Path) -> None:
     policy = load_policy()
 
     # Safe skill (pass)
-    safe_dir = project_root / "examples" / "safe_brand_guidelines"
+    safe_dir = project_root / "examples" / "brand-voice-editor"
     safe_lint = run_lint(safe_dir, policy)
     safe_probe = ProbeRunner(policy).run(safe_dir)
     safe_slug = slugify(safe_lint.skill_name)
@@ -44,7 +44,7 @@ def test_cli_report_fail_on_failures(tmp_path: Path) -> None:
     (artifact_dir / f"{safe_slug}.probe.json").write_text(json.dumps(safe_probe.to_dict()), encoding="utf-8")
 
     # Risky skill (fail) — copy probe json only to simulate failure
-    risky_dir = project_root / "examples" / "risky_net_egress"
+    risky_dir = project_root / "examples" / "risky-net-egress"
     risky_lint = run_lint(risky_dir, policy)
     risky_probe = ProbeRunner(policy).run(risky_dir)
     risky_slug = slugify(risky_lint.skill_name)
@@ -78,4 +78,4 @@ def test_cli_report_fail_on_failures(tmp_path: Path) -> None:
     )
     assert summary_result.exit_code == 0
     assert "Quick Summary" in summary_result.stdout
-    assert "Brand Voice Editor" in summary_result.stdout
+    assert "brand-voice-editor" in summary_result.stdout

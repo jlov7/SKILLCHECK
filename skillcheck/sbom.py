@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+from .dependencies import collect_dependencies
+
 
 def _hash_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -32,14 +34,28 @@ def generate_sbom(skill_path: Path, output_path: Path) -> Path:
                     ],
                 }
             )
+    dependencies, _ = collect_dependencies(skill_path)
+    packages: List[Dict[str, Any]] = []
+    for dep in sorted({(dep.ecosystem, dep.name, dep.spec) for dep in dependencies}):
+        ecosystem, name, spec = dep
+        packages.append(
+            {
+                "spdxid": f"SPDXRef-Package-{ecosystem}-{name}",
+                "name": name,
+                "versionInfo": spec,
+                "supplier": "NOASSERTION",
+                "downloadLocation": "NOASSERTION",
+            }
+        )
     sbom = {
         "spdxVersion": "SPDX-2.3",
         "name": skill_path.name,
         "creationInfo": {
             "created": datetime.now(timezone.utc).isoformat(),
-            "creators": ["Tool: skillcheck/0.1.0"],
+            "creators": ["Tool: skillcheck/0.2.0"],
         },
         "files": files,
+        "packages": packages,
     }
     output_path.write_text(json.dumps(sbom, indent=2), encoding="utf-8")
     return output_path

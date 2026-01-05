@@ -11,7 +11,7 @@ from skillcheck.sbom import generate_sbom
 
 def test_attestation_serializes_policy(tmp_path: Path) -> None:
     project_root = Path(__file__).resolve().parents[1]
-    skill_dir = project_root / "examples" / "safe_brand_guidelines"
+    skill_dir = project_root / "examples" / "brand-voice-editor"
     policy = load_policy()
     lint_report = run_lint(skill_dir, policy)
     probe_result = ProbeRunner(policy).run(skill_dir)
@@ -35,7 +35,7 @@ def test_attestation_serializes_policy(tmp_path: Path) -> None:
 
 
 def test_attestation_from_zip(tmp_path: Path, make_skill_zip) -> None:
-    archive = make_skill_zip("safe_brand_guidelines")
+    archive = make_skill_zip("brand-voice-editor")
     policy = load_policy()
     with open_skill_bundle(archive) as bundle:
         lint_report = run_lint(bundle, policy)

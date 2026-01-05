@@ -5,13 +5,16 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Sequence
 
-from .schema import Policy, SkillValidationError, load_policy, load_skill_metadata
+from .dependencies import collect_dependencies, DependencyIssue
+from .schema import Policy, parse_skill_metadata, load_policy
 
 SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*[^\s]+")
 PATH_TRAVERSAL_PATTERN = re.compile(r"\.\./|\.\.\\\\")
-MONOLITH_CHAR_THRESHOLD = 5000
+REFERENCE_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+REFERENCE_INLINE_PATTERN = re.compile(r"\b(?:scripts|references|assets)/[A-Za-z0-9_./-]+")
+IGNORE_DIRS = {".git", ".skillcheck", "__pycache__", "node_modules"}
 
 
 @dataclass
@@ -70,6 +73,8 @@ class LintReport:
 
 def _iter_files(skill_path: Path) -> Iterable[Path]:
     for candidate in sorted(skill_path.rglob("*")):
+        if any(part in IGNORE_DIRS for part in candidate.parts):
+            continue
         if candidate.is_file():
             yield candidate
 
@@ -85,15 +90,20 @@ def _issue_waived(policy: Policy, code: str, path: Path) -> bool:
     return False
 
 
-def _check_monolithic_skill(body: str, skill_path: Path, issues: List[LintIssue]) -> None:
-    if len(body) > MONOLITH_CHAR_THRESHOLD:
+def _check_monolithic_skill(body: str, skill_md_path: Path, policy: Policy, issues: List[LintIssue]) -> None:
+    max_lines = policy.skill_body_max_lines
+    if max_lines <= 0:
+        return
+    line_count = len(body.splitlines())
+    if line_count > max_lines:
         issues.append(
             LintIssue(
                 code="SKILL_MONOLITH",
-                path=str(skill_path / "SKILL.md"),
+                path=str(skill_md_path),
                 severity="warning",
                 message=(
-                    "SKILL.md body exceeds recommended size. Consider progressive disclosure via separate files."
+                    "SKILL.md body exceeds recommended size "
+                    f"({line_count} lines > {max_lines}). Consider progressive disclosure via separate files."
                 ),
             )
         )
@@ -135,24 +145,108 @@ def _check_path_traversal(path: Path, text: str, issues: List[LintIssue]) -> Non
         )
 
 
+def _extract_references(body: str) -> List[str]:
+    refs = set()
+    for match in REFERENCE_LINK_PATTERN.finditer(body):
+        path = match.group(1).strip()
+        if not path or "://" in path or path.startswith("#"):
+            continue
+        refs.add(path.strip().strip("`").strip("\"'"))
+    for match in REFERENCE_INLINE_PATTERN.finditer(body):
+        refs.add(match.group(0))
+    return sorted(refs)
+
+
+def _check_file_references(body: str, skill_path: Path, skill_md_path: Path, issues: List[LintIssue]) -> None:
+    for ref in _extract_references(body):
+        if not ref:
+            continue
+        path = Path(ref)
+        if path.is_absolute():
+            issues.append(
+                LintIssue(
+                    code="REFERENCE_ABSOLUTE",
+                    path=str(skill_md_path),
+                    message=f"Absolute path references are not allowed: {ref}",
+                )
+            )
+            continue
+        if ".." in path.parts:
+            issues.append(
+                LintIssue(
+                    code="REFERENCE_TRAVERSAL",
+                    path=str(skill_md_path),
+                    message=f"Reference escapes skill root: {ref}",
+                )
+            )
+            continue
+        if len(path.parts) > 2:
+            issues.append(
+                LintIssue(
+                    code="REFERENCE_NESTED",
+                    path=str(skill_md_path),
+                    severity="warning",
+                    message=f"Reference is more than one level deep: {ref}",
+                )
+            )
+        if not (skill_path / path).exists():
+            issues.append(
+                LintIssue(
+                    code="REFERENCE_MISSING",
+                    path=str(skill_md_path),
+                    severity="warning",
+                    message=f"Referenced file not found: {ref}",
+                )
+            )
+
+
+def _dependency_issue_to_lint(issue: DependencyIssue) -> LintIssue:
+    return LintIssue(code=issue.code, message=issue.message, path=issue.path)
+
+
+def _check_dependencies(skill_path: Path, policy: Policy, issues: List[LintIssue]) -> None:
+    dependencies, dep_issues = collect_dependencies(skill_path)
+    for issue in dep_issues:
+        issues.append(_dependency_issue_to_lint(issue))
+    for dep in dependencies:
+        if not policy.is_dependency_allowed(dep.ecosystem, dep.name, dep.spec):
+            issues.append(
+                LintIssue(
+                    code=f"DEPENDENCY_{dep.ecosystem.upper()}",
+                    path=dep.source,
+                    message=f"Dependency '{dep.spec}' is not in allowlist",
+                )
+            )
+
+
+def _add_schema_issues(
+    issues: List[LintIssue],
+    schema_issues: Sequence,
+    skill_md_path: Optional[Path],
+    skill_path: Path,
+) -> None:
+    fallback = skill_md_path or (skill_path / "SKILL.md")
+    for issue in schema_issues:
+        path = issue.path or str(fallback)
+        issues.append(
+            LintIssue(
+                code=issue.code,
+                path=path,
+                message=issue.message,
+                severity=issue.severity,
+            )
+        )
+
+
 def run_lint(skill_path: Path, policy: Optional[Policy] = None) -> LintReport:
     """Run lint rules for a Skill directory."""
     policy_obj = policy or load_policy()
-    try:
-        metadata, body = load_skill_metadata(skill_path, policy_obj)
-    except SkillValidationError as exc:
-        issue = LintIssue(
-            code="SCHEMA_INVALID",
-            path=str(skill_path / "SKILL.md"),
-            message=str(exc),
-        )
-        return LintReport(
-            skill_name=skill_path.name,
-            skill_version=None,
-            issues=[issue],
-            files_scanned=0,
-        )
+    parse_result = parse_skill_metadata(skill_path, policy_obj)
+    metadata = parse_result.metadata
     issues: List[LintIssue] = []
+
+    _add_schema_issues(issues, parse_result.issues, parse_result.skill_md_path, skill_path)
+
     files = list(_iter_files(skill_path))
     for file_path in files:
         try:
@@ -160,12 +254,30 @@ def run_lint(skill_path: Path, policy: Optional[Policy] = None) -> LintReport:
         except UnicodeDecodeError:
             # Binary files are skipped but counted.
             continue
-        _check_forbidden_patterns(policy_obj, file_path.relative_to(skill_path), text, issues)
-        _check_secret_pattern(file_path.relative_to(skill_path), text, issues)
-        _check_path_traversal(file_path.relative_to(skill_path), text, issues)
-    _check_monolithic_skill(body, skill_path, issues)
+        rel_path = file_path.relative_to(skill_path)
+        _check_forbidden_patterns(policy_obj, rel_path, text, issues)
+        _check_secret_pattern(rel_path, text, issues)
+        _check_path_traversal(rel_path, text, issues)
+
+    if parse_result.body:
+        _check_monolithic_skill(
+            parse_result.body,
+            parse_result.skill_md_path or (skill_path / "SKILL.md"),
+            policy_obj,
+            issues,
+        )
+        _check_file_references(
+            parse_result.body,
+            skill_path,
+            parse_result.skill_md_path or (skill_path / "SKILL.md"),
+            issues,
+        )
+
+    _check_dependencies(skill_path, policy_obj, issues)
+
+    skill_name = metadata.name or skill_path.name
     return LintReport(
-        skill_name=metadata.name,
+        skill_name=skill_name,
         skill_version=metadata.version,
         issues=issues,
         files_scanned=len(files),
