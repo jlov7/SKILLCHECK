@@ -19,9 +19,10 @@ from .bundle import SkillBundleError, open_skill_bundle
 from .lint_rules import run_lint
 from .otel import emit_run_span
 from .probe import ProbeRunner
+from .remediation import get_remediation
 from .report import ReportWriter, ReportFinding
 from .sbom import generate_sbom
-from .schema import Policy, find_skill_md, load_policy
+from .schema import Policy, SkillValidationError, find_skill_md, load_policy
 from .utils import slugify
 
 app = typer.Typer(
@@ -125,8 +126,11 @@ def _save_json(payload: dict, path: Path) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def _load_policy(path: Optional[Path]) -> Policy:
-    return load_policy(path)
+def _load_policy(path: Optional[Path], policy_pack: Optional[str], policy_version: Optional[int]) -> Policy:
+    try:
+        return load_policy(path, policy_pack=policy_pack, expected_version=policy_version)
+    except SkillValidationError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 def _git_changed_files(run_dir: Path, base: str, head: str) -> List[str]:
@@ -161,6 +165,7 @@ def _render_summary_table(rows) -> None:
     summary_table.add_column("Skill", style="bold")
     summary_table.add_column("Lint", justify="right")
     summary_table.add_column("Probe", justify="right")
+    summary_table.add_column("Trust", justify="right")
     summary_table.add_column("Status", style="bold")
     for row in rows:
         probe_issues = row.probe_egress + row.probe_writes
@@ -168,6 +173,7 @@ def _render_summary_table(rows) -> None:
             row.skill_name,
             str(row.lint_violations),
             str(probe_issues),
+            f"{row.trust_score:.2f}",
             row.status.upper(),
         )
     console.print(summary_table)
@@ -199,19 +205,47 @@ def help_cmd() -> None:
     console.print("  skillcheck lint <path>")
     console.print("  skillcheck probe <path>")
     console.print("  skillcheck report .")
+    console.print("  skillcheck remediate <FINDING_CODE>")
     console.print("Docs: docs/help.md")
+
+
+@app.command()
+def remediate(
+    finding_code: str = typer.Argument(..., help="Finding code (e.g. EGRESS_SANDBOX, SECRET_SUSPECT)."),
+) -> None:
+    """Show guided remediation steps for a finding code."""
+    guide = get_remediation(finding_code)
+    if guide is None:
+        console.print(f"No built-in remediation found for '{finding_code}'.", style="yellow")
+        console.print("Try one of: EGRESS_*, WRITE_*, SECRET_SUSPECT, DEPENDENCY_*, FRONTMATTER_*.")
+        raise typer.Exit(code=1)
+    console.print(f"Remediation — {guide.title}", style="bold")
+    console.print(f"Why: {guide.why}")
+    console.print("Recommended fixes:")
+    for idx, step in enumerate(guide.fixes, start=1):
+        console.print(f"  {idx}. {step}")
 
 
 @app.command()
 def lint(
     skill_path: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=True),
     policy: Optional[Path] = typer.Option(None, "--policy", "-p", help="Path to policy YAML."),
+    policy_pack: Optional[str] = typer.Option(
+        None,
+        "--policy-pack",
+        help="Built-in policy pack (strict|balanced|research|enterprise).",
+    ),
+    policy_version: Optional[int] = typer.Option(
+        None,
+        "--policy-version",
+        help="Require the loaded policy version to match this value.",
+    ),
     output_dir: Optional[Path] = typer.Option(
         None, "--output-dir", help="Directory for lint artifacts (default: ./.skillcheck)."
     ),
 ) -> None:
     """Run static lint against a Skill bundle."""
-    policy_obj = _load_policy(policy)
+    policy_obj = _load_policy(policy, policy_pack, policy_version)
     with _skill_dir(skill_path) as bundle_dir:
         report = run_lint(bundle_dir, policy_obj)
     _render_lint_table(report)
@@ -235,6 +269,16 @@ def lint(
 def probe(
     skill_path: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=True),
     policy: Optional[Path] = typer.Option(None, "--policy", "-p", help="Path to policy YAML."),
+    policy_pack: Optional[str] = typer.Option(
+        None,
+        "--policy-pack",
+        help="Built-in policy pack (strict|balanced|research|enterprise).",
+    ),
+    policy_version: Optional[int] = typer.Option(
+        None,
+        "--policy-version",
+        help="Require the loaded policy version to match this value.",
+    ),
     output_dir: Optional[Path] = typer.Option(
         None, "--output-dir", help="Directory for probe artifacts (default: ./.skillcheck)."
     ),
@@ -245,7 +289,7 @@ def probe(
     ),
 ) -> None:
     """Run dynamic probe heuristics inside an ephemeral sandbox."""
-    policy_obj = _load_policy(policy)
+    policy_obj = _load_policy(policy, policy_pack, policy_version)
     with _skill_dir(skill_path) as bundle_dir:
         runner = ProbeRunner(policy_obj, enable_exec=exec_probe)
         result = runner.run(bundle_dir)
@@ -271,6 +315,16 @@ def probe(
 def attest(
     skill_path: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=True),
     policy: Optional[Path] = typer.Option(None, "--policy", "-p", help="Path to policy YAML."),
+    policy_pack: Optional[str] = typer.Option(
+        None,
+        "--policy-pack",
+        help="Built-in policy pack (strict|balanced|research|enterprise).",
+    ),
+    policy_version: Optional[int] = typer.Option(
+        None,
+        "--policy-version",
+        help="Require the loaded policy version to match this value.",
+    ),
     output_dir: Optional[Path] = typer.Option(
         None, "--output-dir", help="Directory for attestation artifacts (default: ./.skillcheck)."
     ),
@@ -281,7 +335,7 @@ def attest(
     ),
 ) -> None:
     """Generate SBOM and attestation manifest for a Skill."""
-    policy_obj = _load_policy(policy)
+    policy_obj = _load_policy(policy, policy_pack, policy_version)
     artifacts_dir = _resolve_output_dir(output_dir)
     with _skill_dir(skill_path) as bundle_dir:
         report = run_lint(bundle_dir, policy_obj)
@@ -327,6 +381,21 @@ def report(
         "--fail-on-failures/--no-fail-on-failures",
         help="Exit with non-zero status if any skill fails lint or probe checks.",
     ),
+    min_trust_score: Optional[float] = typer.Option(
+        None,
+        "--min-trust-score",
+        help="Mark skills below this trust score as gate failures when fail-on-low-trust is enabled.",
+    ),
+    fail_on_low_trust: bool = typer.Option(
+        False,
+        "--fail-on-low-trust/--no-fail-on-low-trust",
+        help="Exit non-zero when any skill trust score is below --min-trust-score.",
+    ),
+    release_gate: str = typer.Option(
+        "none",
+        "--release-gate",
+        help="Preset gate policy: none, standard, strict.",
+    ),
     summary: bool = typer.Option(
         False,
         "--summary/--no-summary",
@@ -355,9 +424,29 @@ def report(
     if result.sarif_path:
         console.print(f"Report SARIF: {result.sarif_path}", style="green")
     console.print(
-        f"Summary — total: {result.summary.total}, pass: {result.summary.pass_count}, fail: {result.summary.fail_count}",
+        f"Summary — total: {result.summary.total}, pass: {result.summary.pass_count}, fail: {result.summary.fail_count}, avg trust: {result.summary.avg_trust_score:.2f}",
         style="cyan",
     )
+    gate = release_gate.strip().lower()
+    gate_thresholds = {"standard": 80.0, "strict": 90.0}
+    effective_min_trust = min_trust_score
+    effective_fail_on_failures = fail_on_failures
+    effective_fail_on_low_trust = fail_on_low_trust
+    if gate in gate_thresholds:
+        threshold = gate_thresholds[gate]
+        effective_min_trust = threshold if effective_min_trust is None else max(effective_min_trust, threshold)
+        effective_fail_on_failures = True
+        effective_fail_on_low_trust = True
+    elif gate != "none":
+        raise typer.BadParameter("release-gate must be one of: none, standard, strict")
+
+    low_trust_rows = []
+    if effective_min_trust is not None:
+        low_trust_rows = [row for row in result.rows if row.trust_score < effective_min_trust]
+        console.print(
+            f"Trust gate threshold: {effective_min_trust:.2f} (below threshold: {len(low_trust_rows)})",
+            style="cyan",
+        )
     if summary:
         if not result.rows:
             console.print("No skills found in artifacts.", style="yellow")
@@ -370,7 +459,9 @@ def report(
     )
     if github_annotations and result.findings:
         _emit_github_annotations(result.findings)
-    if fail_on_failures and result.summary.fail_count:
+    if effective_fail_on_failures and result.summary.fail_count:
+        raise typer.Exit(code=1)
+    if effective_fail_on_low_trust and low_trust_rows:
         raise typer.Exit(code=1)
 
 
@@ -382,6 +473,16 @@ def diff(
     base: str = typer.Option("HEAD~1", "--base", help="Base git ref for changed-files diff."),
     head: str = typer.Option("HEAD", "--head", help="Head git ref for changed-files diff."),
     policy: Optional[Path] = typer.Option(None, "--policy", "-p", help="Path to policy YAML."),
+    policy_pack: Optional[str] = typer.Option(
+        None,
+        "--policy-pack",
+        help="Built-in policy pack (strict|balanced|research|enterprise).",
+    ),
+    policy_version: Optional[int] = typer.Option(
+        None,
+        "--policy-version",
+        help="Require the loaded policy version to match this value.",
+    ),
     output_dir: Optional[Path] = typer.Option(
         None,
         "--output-dir",
@@ -416,7 +517,7 @@ def diff(
         console.print(f"No changed skill files detected between {base} and {head}.", style="yellow")
         raise typer.Exit(code=0)
 
-    policy_obj = _load_policy(policy)
+    policy_obj = _load_policy(policy, policy_pack, policy_version)
     artifacts_dir = _resolve_diff_output_dir(output_dir)
     _clear_diff_artifacts(artifacts_dir)
 

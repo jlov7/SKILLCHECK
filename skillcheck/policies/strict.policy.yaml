@@ -1,11 +1,11 @@
-# Default policy for SKILLCHECK.
-pack: balanced
+# Strict policy for hardened production releases.
+pack: strict
 version: 2
 limits:
-  skill_name_max: 64
-  skill_description_max: 1024
-  skill_compatibility_max: 500
-  skill_body_max_lines: 500
+  skill_name_max: 48
+  skill_description_max: 512
+  skill_compatibility_max: 250
+  skill_body_max_lines: 300
 
 frontmatter:
   allow_unknown_fields: false
@@ -19,18 +19,11 @@ allow:
       - "SKILL.md"
       - "skill.md"
       - "*.md"
-      - "*.txt"
       - "*.yaml"
       - "*.yml"
       - "*.json"
       - "*.toml"
       - "**/*.md"
-      - "**/*.txt"
-      - "**/*.yaml"
-      - "**/*.yml"
-      - "**/*.json"
-      - "**/*.toml"
-      - "scripts/**"
       - "references/**"
       - "assets/**"
     write_globs:
@@ -43,7 +36,7 @@ dependencies:
   allow_npm: []
 
 probe:
-  enable_exec: false
+  enable_exec: true
   exec_globs:
     - "scripts/**/*.py"
     - "*.py"
@@ -54,8 +47,8 @@ forbidden_patterns:
     reason: "Potential secret detected in SKILL.md or resources"
   - pattern: "curl\\s+http"
     reason: "Raw network call via curl (HTTP/HTTPS) is forbidden without allowlist"
-  - pattern: "requests\\.get\\("
-    reason: "Python network call via requests.get is forbidden without allowlist"
+  - pattern: "requests\\.(get|post|put|delete|patch)\\("
+    reason: "Python requests network calls are forbidden without allowlist"
   - pattern: "urllib\\.request\\.urlopen\\("
     reason: "Python network call via urllib.request is forbidden without allowlist"
   - pattern: "subprocess\\.(Popen|run)\\("

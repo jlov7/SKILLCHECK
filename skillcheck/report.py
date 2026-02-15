@@ -27,6 +27,8 @@ class ReportRow:
     probe_writes: int
     policy_hash: str
     signature_mode: str
+    waivers_count: int
+    trust_score: float
 
     @property
     def status(self) -> str:
@@ -38,6 +40,8 @@ class ReportSummary:
     total: int
     pass_count: int
     fail_count: int
+    avg_trust_score: float
+    min_trust_score: float
 
 
 @dataclass
@@ -96,9 +100,24 @@ class ReportWriter:
                     probe_writes=int(probe_summary.get("disallowed_writes", 0)),
                     policy_hash=att_entry.get("policy", {}).get("sha256", ""),
                     signature_mode=att_entry.get("signature", {}).get("mode", ""),
+                    waivers_count=len(att_entry.get("policy", {}).get("waivers", []) or []),
+                    trust_score=0.0,
                 )
             )
+        for row in rows:
+            row.trust_score = self._calculate_trust_score(row)
         return rows
+
+    def _calculate_trust_score(self, row: ReportRow) -> float:
+        score = 100.0
+        score -= 15.0 * row.lint_violations
+        score -= 20.0 * row.probe_egress
+        score -= 20.0 * row.probe_writes
+        score -= 2.0 * row.waivers_count
+        if row.signature_mode == "sigstore":
+            score += 3.0
+        score = max(0.0, min(100.0, score))
+        return round(score, 2)
 
     def _collect_findings(self, lint: Dict[str, dict], probe: Dict[str, dict]) -> List[ReportFinding]:
         findings: List[ReportFinding] = []
@@ -166,6 +185,8 @@ class ReportWriter:
                     "probe_disallowed_writes",
                     "policy_hash",
                     "signature_mode",
+                    "waivers_count",
+                    "trust_score",
                     "status",
                 ]
             )
@@ -180,6 +201,8 @@ class ReportWriter:
                         row.probe_writes,
                         row.policy_hash,
                         row.signature_mode,
+                        row.waivers_count,
+                        row.trust_score,
                         row.status,
                     ]
                 )
@@ -194,13 +217,13 @@ class ReportWriter:
             f"- Passes: **{summary.pass_count}**",
             f"- Failures: **{summary.fail_count}**",
             "",
-            "| Skill | Version | Lint Violations | Lint Issues | Egress Attempts | Disallowed Writes | Policy Hash | Signature | Status |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Skill | Version | Lint Violations | Lint Issues | Egress Attempts | Disallowed Writes | Trust Score | Policy Hash | Signature | Status |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for row in rows:
             lines.append(
                 f"| {row.skill_name} | {row.skill_version or '—'} | {row.lint_violations} | {row.lint_issues} | "
-                f"{row.probe_egress} | {row.probe_writes} | {row.policy_hash or '—'} | {row.signature_mode or '—'} | {row.status.upper()} |"
+                f"{row.probe_egress} | {row.probe_writes} | {row.trust_score:.2f} | {row.policy_hash or '—'} | {row.signature_mode or '—'} | {row.status.upper()} |"
             )
         if chart_path:
             lines.append("")
@@ -215,6 +238,8 @@ class ReportWriter:
                 "total": summary.total,
                 "pass_count": summary.pass_count,
                 "fail_count": summary.fail_count,
+                "avg_trust_score": summary.avg_trust_score,
+                "min_trust_score": summary.min_trust_score,
             },
             "rows": [
                 {
@@ -226,6 +251,8 @@ class ReportWriter:
                     "probe_disallowed_writes": row.probe_writes,
                     "policy_hash": row.policy_hash,
                     "signature_mode": row.signature_mode,
+                    "waivers_count": row.waivers_count,
+                    "trust_score": row.trust_score,
                     "status": row.status,
                 }
                 for row in rows
@@ -287,7 +314,16 @@ class ReportWriter:
     def _summarize(self, rows: List[ReportRow]) -> ReportSummary:
         pass_count = sum(1 for row in rows if row.status == "pass")
         fail_count = sum(1 for row in rows if row.status != "pass")
-        return ReportSummary(total=len(rows), pass_count=pass_count, fail_count=fail_count)
+        trust_scores = [row.trust_score for row in rows]
+        avg_trust_score = round(sum(trust_scores) / len(trust_scores), 2) if trust_scores else 0.0
+        min_trust_score = round(min(trust_scores), 2) if trust_scores else 0.0
+        return ReportSummary(
+            total=len(rows),
+            pass_count=pass_count,
+            fail_count=fail_count,
+            avg_trust_score=avg_trust_score,
+            min_trust_score=min_trust_score,
+        )
 
     def _write_chart(self, rows: List[ReportRow]) -> Optional[Path]:
         if not _HAS_MATPLOTLIB or not rows:

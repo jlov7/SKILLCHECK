@@ -55,3 +55,20 @@ description: "Mismatch demo."
     policy = load_policy()
     with pytest.raises(SkillValidationError):
         load_skill_metadata(skill_dir, policy)
+
+
+def test_load_policy_pack_by_name() -> None:
+    policy = load_policy(policy_pack="strict")
+    assert policy.raw.get("pack") == "strict"
+    assert policy.raw.get("version") == 2
+
+
+def test_load_all_policy_packs() -> None:
+    for pack in ("strict", "balanced", "research", "enterprise"):
+        policy = load_policy(policy_pack=pack)
+        assert policy.raw.get("pack") == pack
+
+
+def test_load_policy_pack_version_mismatch() -> None:
+    with pytest.raises(SkillValidationError):
+        load_policy(policy_pack="balanced", expected_version=999)

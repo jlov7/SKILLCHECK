@@ -217,3 +217,80 @@ def test_cli_report_outputs_sarif_and_annotations(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert (artifact_dir / "results.sarif").exists()
     assert "::warning" in result.stdout or "::error" in result.stdout
+
+
+def test_cli_lint_supports_policy_pack_and_version() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    safe_dir = project_root / "examples" / "brand-voice-editor"
+    result = runner.invoke(
+        app,
+        [
+            "lint",
+            str(safe_dir),
+            "--policy-pack",
+            "balanced",
+            "--policy-version",
+            "2",
+        ],
+    )
+    assert result.exit_code == 0
+
+
+def test_cli_remediate_outputs_guidance() -> None:
+    result = runner.invoke(app, ["remediate", "EGRESS_SANDBOX"])
+    assert result.exit_code == 0
+    assert "Recommended fixes" in result.stdout
+    assert "network" in result.stdout.lower()
+
+
+def test_cli_report_fail_on_low_trust(tmp_path: Path) -> None:
+    artifact_dir = tmp_path / ".skillcheck"
+    artifact_dir.mkdir()
+    project_root = Path(__file__).resolve().parents[1]
+    policy = load_policy()
+    risky_dir = project_root / "examples" / "risky-net-egress"
+    risky_lint = run_lint(risky_dir, policy)
+    risky_probe = ProbeRunner(policy).run(risky_dir)
+    risky_slug = slugify(risky_lint.skill_name)
+    (artifact_dir / f"{risky_slug}.lint.json").write_text(json.dumps(risky_lint.to_dict()), encoding="utf-8")
+    (artifact_dir / f"{risky_slug}.probe.json").write_text(json.dumps(risky_probe.to_dict()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            str(tmp_path),
+            "--artifacts",
+            str(artifact_dir),
+            "--min-trust-score",
+            "90",
+            "--fail-on-low-trust",
+        ],
+    )
+    assert result.exit_code == 1
+
+
+def test_cli_report_release_gate_strict(tmp_path: Path) -> None:
+    artifact_dir = tmp_path / ".skillcheck"
+    artifact_dir.mkdir()
+    project_root = Path(__file__).resolve().parents[1]
+    policy = load_policy()
+    risky_dir = project_root / "examples" / "risky-net-egress"
+    risky_lint = run_lint(risky_dir, policy)
+    risky_probe = ProbeRunner(policy).run(risky_dir)
+    risky_slug = slugify(risky_lint.skill_name)
+    (artifact_dir / f"{risky_slug}.lint.json").write_text(json.dumps(risky_lint.to_dict()), encoding="utf-8")
+    (artifact_dir / f"{risky_slug}.probe.json").write_text(json.dumps(risky_probe.to_dict()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            str(tmp_path),
+            "--artifacts",
+            str(artifact_dir),
+            "--release-gate",
+            "strict",
+        ],
+    )
+    assert result.exit_code == 1

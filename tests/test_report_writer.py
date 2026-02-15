@@ -55,3 +55,23 @@ def test_report_writer_outputs_sarif(tmp_path: Path) -> None:
     sarif = json.loads(result.sarif_path.read_text(encoding="utf-8"))
     assert sarif["version"] == "2.1.0"
     assert sarif["runs"][0]["results"], "Expected SARIF findings"
+
+
+def test_report_writer_includes_trust_score(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    artifacts = tmp_path / ".skillcheck"
+    artifacts.mkdir()
+    policy = load_policy()
+
+    safe_dir = project_root / "examples" / "brand-voice-editor"
+    lint_report = run_lint(safe_dir, policy)
+    probe_report = ProbeRunner(policy).run(safe_dir)
+    slug = slugify(lint_report.skill_name)
+    (artifacts / f"{slug}.lint.json").write_text(json.dumps(lint_report.to_dict()), encoding="utf-8")
+    (artifacts / f"{slug}.probe.json").write_text(json.dumps(probe_report.to_dict()), encoding="utf-8")
+
+    writer = ReportWriter(artifacts)
+    result = writer.write()
+    payload = json.loads(result.json_path.read_text(encoding="utf-8"))
+    assert "avg_trust_score" in payload["summary"]
+    assert "trust_score" in payload["rows"][0]

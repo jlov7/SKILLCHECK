@@ -1,4 +1,4 @@
-# Default policy for SKILLCHECK.
+# Balanced policy for most CI workflows.
 pack: balanced
 version: 2
 limits:

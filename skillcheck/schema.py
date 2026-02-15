@@ -21,6 +21,7 @@ SKILL_FRONTMATTER_FIELDS = {
     "allowed-tools",
     "metadata",
 }
+POLICY_PACKS = {"strict", "balanced", "research", "enterprise"}
 
 
 class SkillValidationError(RuntimeError):
@@ -71,6 +72,8 @@ class Policy:
     raw: Dict[str, Any]
     path: str
     sha256: str
+    pack: Optional[str] = None
+    version: Optional[int] = None
     skill_name_max: int = 64
     skill_description_max: int = 1024
     skill_compatibility_max: int = 500
@@ -105,18 +108,42 @@ class Policy:
         )
 
 
-def load_policy(policy_path: Optional[Path] = None) -> Policy:
+def load_policy(
+    policy_path: Optional[Path] = None,
+    *,
+    policy_pack: Optional[str] = None,
+    expected_version: Optional[int] = None,
+) -> Policy:
     """Load policy from YAML file (defaults to bundled policy)."""
+    if policy_path is not None and policy_pack is not None:
+        raise SkillValidationError("Choose either --policy or --policy-pack, not both")
     if policy_path is not None:
         raw_text = policy_path.read_text(encoding="utf-8")
         policy_location = str(policy_path.resolve())
+        selected_pack = None
+    elif policy_pack is not None:
+        selected_pack = policy_pack.strip().lower()
+        if selected_pack not in POLICY_PACKS:
+            options = ", ".join(sorted(POLICY_PACKS))
+            raise SkillValidationError(f"Unknown policy pack '{policy_pack}'. Choose one of: {options}")
+        from importlib import resources
+
+        resource = resources.files("skillcheck.policies").joinpath(f"{selected_pack}.policy.yaml")
+        raw_text = resource.read_text(encoding="utf-8")
+        policy_location = f"package://skillcheck/policies/{selected_pack}.policy.yaml"
     else:
+        selected_pack = "balanced"
         from importlib import resources
 
         resource = resources.files("skillcheck.policies").joinpath("default.policy.yaml")
         raw_text = resource.read_text(encoding="utf-8")
         policy_location = "package://skillcheck/policies/default.policy.yaml"
     raw_policy = yaml.safe_load(raw_text) or {}
+    raw_version = raw_policy.get("version")
+    if expected_version is not None and int(raw_version or 0) != int(expected_version):
+        raise SkillValidationError(
+            f"Policy version mismatch: expected {expected_version}, got {raw_version}"
+        )
     checksum = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
     limits = raw_policy.get("limits", {}) if isinstance(raw_policy.get("limits", {}), dict) else {}
     patterns = raw_policy.get("forbidden_patterns", []) or []
@@ -140,6 +167,8 @@ def load_policy(policy_path: Optional[Path] = None) -> Policy:
         raw=raw_policy,
         path=policy_location,
         sha256=checksum,
+        pack=selected_pack or str(raw_policy.get("pack") or ""),
+        version=int(raw_version) if isinstance(raw_version, int) else None,
         skill_name_max=int(limits.get("skill_name_max", 64)),
         skill_description_max=int(limits.get("skill_description_max", 1024)),
         skill_compatibility_max=int(limits.get("skill_compatibility_max", 500)),
@@ -451,7 +480,8 @@ def policy_summary(policy: Policy) -> Dict[str, Any]:
     return {
         "path": policy.path,
         "sha256": policy.sha256,
-        "version": policy.raw.get("version"),
+        "pack": policy.pack,
+        "version": policy.version if policy.version is not None else policy.raw.get("version"),
         "limits": {
             "skill_name_max": policy.skill_name_max,
             "skill_description_max": policy.skill_description_max,

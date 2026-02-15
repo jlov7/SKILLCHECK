@@ -1,11 +1,11 @@
-# Default policy for SKILLCHECK.
-pack: balanced
+# Enterprise policy for governed deployment with explicit tool controls.
+pack: enterprise
 version: 2
 limits:
   skill_name_max: 64
-  skill_description_max: 1024
-  skill_compatibility_max: 500
-  skill_body_max_lines: 500
+  skill_description_max: 900
+  skill_compatibility_max: 400
+  skill_body_max_lines: 450
 
 frontmatter:
   allow_unknown_fields: false
@@ -19,35 +19,32 @@ allow:
       - "SKILL.md"
       - "skill.md"
       - "*.md"
-      - "*.txt"
       - "*.yaml"
       - "*.yml"
       - "*.json"
       - "*.toml"
       - "**/*.md"
-      - "**/*.txt"
-      - "**/*.yaml"
-      - "**/*.yml"
-      - "**/*.json"
-      - "**/*.toml"
-      - "scripts/**"
       - "references/**"
       - "assets/**"
     write_globs:
       - "scratch/**"
   tools:
-    allowlist: []
+    allowlist:
+      - "read_file"
+      - "search"
+      - "bash"
+      - "python"
 
 dependencies:
   allow_pypi: []
   allow_npm: []
 
 probe:
-  enable_exec: false
+  enable_exec: true
   exec_globs:
     - "scripts/**/*.py"
     - "*.py"
-  timeout: 5
+  timeout: 6
 
 forbidden_patterns:
   - pattern: "(?i)api[_-]?key|secret|token\\s*[:=]"
