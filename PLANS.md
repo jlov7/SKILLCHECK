@@ -1,0 +1,55 @@
+# Release-ready v1 (ExecPlan)
+
+## Purpose / Big Picture
+Make SKILLCHECK release-ready for a v1 launch by ensuring coherent end-to-end journeys, onboarding/help, quality gates, accessibility/performance basics, security hygiene, and complete docs.
+
+## Approach
+Ship in small, reviewable milestones. Start with steering docs and a concrete v1 design, then improve CLI onboarding/help and failure UX with tests, then finish docs + CI quality gates and verify all checks.
+
+## Progress
+- [x] Milestone 1: Steering docs + v1 design
+- [ ] Milestone 2: CLI onboarding/help UX + tests
+- [ ] Milestone 3: Docs/CI quality gates + release verification
+
+## Milestone 1: Steering Docs + v1 Design
+- [x] Add `AGENTS.md` working agreements and commands
+- [x] Add `RELEASE_CHECKLIST.md` with v1 definition of done
+- [x] Add `QUESTIONS.md` and log unknowns
+- [x] Write v1 design in `docs/plans/2026-02-15-release-ready-v1-design.md`
+- [x] Update this plan with milestones and risks
+- [x] Run tests/lint/typecheck/build (quality gate)
+
+## Milestone 2: CLI Onboarding/Help UX + Tests
+- [ ] Add first-run onboarding output for `skillcheck` with no args
+- [ ] Add in-app help command with short guidance + pointers
+- [ ] Improve empty-state messages (e.g., report with no artifacts)
+- [ ] Ensure failure copy is clear for missing SKILL.md/skill.md
+- [ ] Add/adjust tests for CLI UX paths
+- [ ] Run tests/lint/typecheck/build (quality gate)
+
+## Milestone 3: Docs/CI Quality Gates + Release Verification
+- [ ] Add minimal help doc page and link from README
+- [ ] Update README with local setup/run/test/deploy/env var notes
+- [ ] Ensure CI includes lint/typecheck/tests/build steps
+- [ ] Validate accessibility/performance/security basics
+- [ ] Final verification and release report
+- [ ] Run tests/lint/typecheck/build (quality gate)
+
+## Risks
+- CLI UX changes could subtly alter exit codes or output expectations.
+- Adding build verification may require new tooling in CI and local docs.
+
+## Validation Gates
+- `ruff check .`
+- `mypy skillcheck`
+- `pytest -q`
+- `python -m build`
+
+## Surprises & Discoveries
+- `python -m build` reports setuptools deprecation warnings for `project.license` table and license classifier usage.
+
+## Decision Log
+- Adopt milestone-based delivery to keep changes small and reviewable.
+
+## Outcomes & Retrospective
+- TBD (fill in after completion).
