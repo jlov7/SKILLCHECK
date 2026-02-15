@@ -55,3 +55,30 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 - Completed all three milestones with onboarding/help UX, docs, and CI/build gates.
 - Added tests for key CLI onboarding and docs/packaging readiness.
 - Build warnings resolved by updating license metadata.
+
+---
+
+# v1.1 Feature Pack (ExecPlan)
+
+## Purpose / Big Picture
+Ship the highest-impact post-v1 upgrades: changed-files audits, SARIF/PR integration, policy packs with version pinning, guided remediation, and trust-score release gates.
+
+## Progress
+- [x] Milestone 1: Changed-files `diff` audit command
+- [x] Milestone 2: SARIF export + GitHub annotations
+- [x] Milestone 3: Policy packs + version pinning
+- [x] Milestone 4: Guided remediation + trust-score release gates
+- [x] Milestone 5: Docs and CI sync
+
+## Surprises & Discoveries
+- CI workflow still referenced old branch/path names; corrected to keep checks green and reproducible.
+- Policy YAML files needed explicit package-data config to ensure wheel artifacts include all packs.
+
+## Decision Log
+- Added release-gate presets (`standard`, `strict`) to keep gating simple while supporting custom thresholds.
+- Kept `diff` output isolated in `.skillcheck/diff` by default to avoid mixing with full-run artifacts.
+
+## Outcomes & Retrospective
+- Added end-to-end automation support for PR-native governance via SARIF and annotation output.
+- Added deterministic policy governance with pack selection and version pinning.
+- Added remediation UX and trust-based release gates with CI-friendly non-zero exits.

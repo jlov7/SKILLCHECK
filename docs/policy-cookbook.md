@@ -2,6 +2,21 @@
 
 SKILLCHECK policies are YAML files with deny-by-default semantics. Use these snippets to tailor policies for common scenarios.
 
+## Built-in policy packs
+
+Use a built-in pack instead of a custom file when possible:
+
+```bash
+skillcheck lint <skill> --policy-pack balanced --policy-version 2
+skillcheck report . --release-gate standard
+```
+
+Available packs:
+- `strict`: highest guardrails, intended for production gates.
+- `balanced`: default profile for most CI pipelines.
+- `research`: relaxed profile for experimentation.
+- `enterprise`: governed profile with explicit tool allowlist support.
+
 ## Base policy (deny egress & writes)
 
 ```yaml

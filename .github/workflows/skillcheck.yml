@@ -2,7 +2,7 @@ name: SKILLCHECK
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
   pull_request:
 
 jobs:
@@ -30,24 +30,28 @@ jobs:
       - name: Build package
         run: python -m build
       - name: Lint safe sample
-        run: python -m skillcheck.cli lint examples/safe_brand_guidelines --output-dir .skillcheck
+        run: python -m skillcheck.cli lint examples/brand-voice-editor --output-dir .skillcheck --policy-pack balanced --policy-version 2
       - name: Probe safe sample
         run: |
-          SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe examples/safe_brand_guidelines --output-dir .skillcheck --exec
+          SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe examples/brand-voice-editor --output-dir .skillcheck --exec --policy-pack balanced --policy-version 2
       - name: Lint risky sample (expected failure)
         run: |
-          if python -m skillcheck.cli lint examples/risky_net_egress --output-dir .skillcheck; then
+          if python -m skillcheck.cli lint examples/risky-net-egress --output-dir .skillcheck; then
             echo "Expected lint command to fail for risky skill" >&2
             exit 1
           fi
       - name: Probe risky sample (expected failure)
         run: |
-          if SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe examples/risky_net_egress --output-dir .skillcheck --exec; then
+          if SKILLCHECK_PROBE_EXEC=1 python -m skillcheck.cli probe examples/risky-net-egress --output-dir .skillcheck --exec; then
             echo "Expected probe command to fail for risky skill" >&2
             exit 1
           fi
       - name: Aggregate report
-        run: python -m skillcheck.cli report . --artifacts .skillcheck
+        run: python -m skillcheck.cli report . --artifacts .skillcheck --summary --sarif --release-gate standard
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .skillcheck/results.sarif
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

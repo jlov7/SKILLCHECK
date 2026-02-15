@@ -184,10 +184,12 @@ For remediation tips, consult [`docs/finding-remediation.md`](docs/finding-remed
 
 | Command | Purpose | Useful flags |
 | --- | --- | --- |
-| `skillcheck lint <path>` | Static analysis (schema, secrets, forbidden patterns, dependencies). | `--policy` to supply a custom policy. |
-| `skillcheck probe <path>` | Dynamic heuristics + optional sandbox execution. | `--exec` or `SKILLCHECK_PROBE_EXEC=1` to force sandboxing. |
+| `skillcheck lint <path>` | Static analysis (schema, secrets, forbidden patterns, dependencies). | `--policy`, `--policy-pack`, `--policy-version`. |
+| `skillcheck probe <path>` | Dynamic heuristics + optional sandbox execution. | `--exec`, `--policy-pack`, `--policy-version`. |
 | `skillcheck attest <path>` | Runs lint + probe and emits SBOM + attestation. | Install `[attest]` extras to enable Sigstore signing. |
-| `skillcheck report <run-dir>` | Aggregates previous runs into CSV/MD/JSON. | `--fail-on-failures` to exit non-zero on FAIL; `--artifacts <dir>` to read from another folder; `--summary` for a quick terminal table. |
+| `skillcheck report <run-dir>` | Aggregates previous runs into CSV/MD/JSON (+ optional SARIF). | `--sarif`, `--github-annotations`, `--release-gate`, `--min-trust-score`, `--fail-on-low-trust`. |
+| `skillcheck diff <repo-root>` | Audits only Skills touched between two git refs. | `--base`, `--head`, `--exec`, `--fail-on-failures`. |
+| `skillcheck remediate <code>` | Prints guided fixes for a finding code. | `EGRESS_*`, `WRITE_*`, `SECRET_SUSPECT`, etc. |
 
 All commands accept either directories or `.zip` bundles containing `SKILL.md` (or `skill.md`).
 
@@ -209,7 +211,10 @@ test:
         python -m pip install -e .[dev]
         python -m skillcheck.cli lint skills/customer_support
         python -m skillcheck.cli probe skills/customer_support --exec
-        python -m skillcheck.cli report . --fail-on-failures
+        python -m skillcheck.cli report . --fail-on-failures --sarif --release-gate standard
+    - uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: .skillcheck/results.sarif
     - uses: actions/upload-artifact@v4
       with:
         name: skillcheck-artifacts
@@ -234,6 +239,8 @@ For CI best practices, see [`docs/engineer-walkthrough.md`](docs/engineer-walkth
 
 ## Policies & customization
 
+- Policy packs are built-in: `strict`, `balanced` (default), `research`, and `enterprise`.
+- Pin expected policy versions with `--policy-version` in CI to prevent silent drift.
 - Default policy (`skillcheck/policies/default.policy.yaml`) denies egress and restricts writes to `scratch/**`.
 - Customize policies with snippets from the [Policy Cookbook](docs/policy-cookbook.md).
 - Keep policies in source control and layer environment overrides via `--policy`.
