@@ -72,9 +72,9 @@
 ### Phase 5: Full Verification + Release
 - [x] Run full gate: `ruff`, `mypy`, `pytest`, `python -m build`.
 - [x] Capture final outcomes in `.codex/SCRATCHPAD.md`.
-- [ ] Commit in reviewable chunks with conventional commit messages.
-- [ ] Push to `origin/master`.
-- [ ] Report completion with commands and artifact locations.
+- [x] Commit in reviewable chunks with conventional commit messages.
+- [x] Push to `origin/master`.
+- [x] Report completion with commands and artifact locations.
 
 ## Test Plan
 - Unit tests:
@@ -99,3 +99,4 @@
 - 2026-02-15: Implemented remediation engine and `fix` CLI orchestration with guardrails and artifact output.
 - 2026-02-15: Completed docs/help/walkthrough updates and added missing-tool UX for `git`/`gh`.
 - 2026-02-15: Full quality gate passed (`ruff`, `mypy`, `pytest`, `python -m build`).
+- 2026-02-15: Released to `origin/master` via commits `964def5` and `9d010de`.
