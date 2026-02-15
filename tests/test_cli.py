@@ -12,6 +12,11 @@ from skillcheck.utils import slugify
 
 runner = CliRunner()
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    import tomli as tomllib
+
 
 def test_cli_lint_zip(make_skill_zip) -> None:
     archive = make_skill_zip("brand-voice-editor")
@@ -99,3 +104,19 @@ def test_report_empty_state_message(tmp_path: Path) -> None:
     result = runner.invoke(app, ["report", str(tmp_path), "--summary"])
     assert result.exit_code == 0
     assert "No skill artifacts found" in result.output
+
+
+def test_help_doc_exists() -> None:
+    assert Path("docs/help.md").exists()
+
+
+def test_build_dependency_declared() -> None:
+    data = tomllib.loads(Path("pyproject.toml").read_text())
+    dev_deps = data["project"]["optional-dependencies"]["dev"]
+    assert any(dep.startswith("build") for dep in dev_deps)
+
+
+def test_readme_mentions_deploy_and_env_vars() -> None:
+    content = Path("README.md").read_text()
+    assert "Deploy" in content or "Release" in content
+    assert "Environment variables" in content or "Env vars" in content

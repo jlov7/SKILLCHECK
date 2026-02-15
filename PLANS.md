@@ -9,7 +9,7 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 ## Progress
 - [x] Milestone 1: Steering docs + v1 design
 - [x] Milestone 2: CLI onboarding/help UX + tests
-- [ ] Milestone 3: Docs/CI quality gates + release verification
+- [x] Milestone 3: Docs/CI quality gates + release verification
 
 ## Milestone 1: Steering Docs + v1 Design
 - [x] Add `AGENTS.md` working agreements and commands
@@ -28,12 +28,12 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 - [x] Run tests/lint/typecheck/build (quality gate)
 
 ## Milestone 3: Docs/CI Quality Gates + Release Verification
-- [ ] Add minimal help doc page and link from README
-- [ ] Update README with local setup/run/test/deploy/env var notes
-- [ ] Ensure CI includes lint/typecheck/tests/build steps
-- [ ] Validate accessibility/performance/security basics
-- [ ] Final verification and release report
-- [ ] Run tests/lint/typecheck/build (quality gate)
+- [x] Add minimal help doc page and link from README
+- [x] Update README with local setup/run/test/deploy/env var notes
+- [x] Ensure CI includes lint/typecheck/tests/build steps
+- [x] Validate accessibility/performance/security basics
+- [x] Final verification and release report
+- [x] Run tests/lint/typecheck/build (quality gate)
 
 ## Risks
 - CLI UX changes could subtly alter exit codes or output expectations.
@@ -46,7 +46,7 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 - `python -m build`
 
 ## Surprises & Discoveries
-- `python -m build` reports setuptools deprecation warnings for `project.license` table and license classifier usage.
+- `python -m build` reported setuptools deprecation warnings for `project.license` table and license classifier usage; resolved by switching to SPDX string and removing deprecated classifier.
 
 ## Decision Log
 - Adopt milestone-based delivery to keep changes small and reviewable.

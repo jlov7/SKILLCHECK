@@ -27,6 +27,8 @@ jobs:
         run: mypy skillcheck
       - name: Run unit tests
         run: pytest -q
+      - name: Build package
+        run: python -m build
       - name: Lint safe sample
         run: python -m skillcheck.cli lint examples/safe_brand_guidelines --output-dir .skillcheck
       - name: Probe safe sample

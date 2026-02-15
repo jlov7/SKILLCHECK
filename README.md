@@ -76,6 +76,42 @@ python -m skillcheck.cli report . --fail-on-failures
 
 ---
 
+## Local development
+
+### Setup
+```bash
+uv venv .venv
+source .venv/bin/activate
+uv pip install -e '.[dev]'
+```
+
+### Run (examples)
+```bash
+skillcheck lint examples/brand-voice-editor
+skillcheck probe examples/brand-voice-editor
+skillcheck report . --fail-on-failures
+```
+
+### Test
+```bash
+ruff check .
+mypy skillcheck
+pytest -q
+```
+
+### Build/Release
+```bash
+python -m build
+```
+
+### Environment variables
+| Variable | Purpose |
+| --- | --- |
+| `SKILLCHECK_PROBE_EXEC` | Set to `1`/`true` to force sandbox execution. |
+| `SKILLCHECK_OTEL_EXPORTER` | Set to `console` or `otlp` to enable OpenTelemetry spans. |
+
+For a quick CLI reference, run `skillcheck help` or see `docs/help.md`.
+
 ## What happens during an audit
 
 ```
