@@ -52,4 +52,6 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 - Adopt milestone-based delivery to keep changes small and reviewable.
 
 ## Outcomes & Retrospective
-- TBD (fill in after completion).
+- Completed all three milestones with onboarding/help UX, docs, and CI/build gates.
+- Added tests for key CLI onboarding and docs/packaging readiness.
+- Build warnings resolved by updating license metadata.
