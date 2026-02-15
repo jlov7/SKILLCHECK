@@ -48,6 +48,9 @@ viz = [
 attest = [
   "sigstore>=2.0.0"
 ]
+ui = [
+  "streamlit>=1.37.0"
+]
 dev = [
   "build>=1.2.0",
   "pytest>=7.4",

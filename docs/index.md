@@ -28,6 +28,7 @@ You will get:
 
 ## Live demo assets
 - Scripted terminal demo: `./scripts/demo.sh`
+- Graphical app demo: `python -m pip install -e .[ui] && skillcheck studio`
 - Curated artifacts: [`docs/artifacts/`](artifacts)
 - Sample narrative report: [Sample results](sample-results.md)
 

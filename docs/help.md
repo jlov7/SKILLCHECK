@@ -4,6 +4,7 @@
 ```bash
 ./scripts/try.sh
 ./scripts/demo.sh
+skillcheck studio
 skillcheck lint <path-to-skill>
 skillcheck probe <path-to-skill>
 skillcheck report . --fail-on-failures
@@ -23,6 +24,11 @@ Use `--output-dir docs/artifacts` when you intentionally want committed demo out
 - `--commit`: stages and commits changed Skill files (`--apply` required).
 - `--push`: pushes the remediation branch (`--commit` required).
 - `--pr`: opens a GitHub pull request (`--push` required, `gh` CLI required).
+
+## Studio UI
+- Install once: `python -m pip install -e .[ui]`
+- Launch: `skillcheck studio`
+- Useful flags: `--host`, `--port`, `--headless`
 
 ## Common Issues
 - **Missing `SKILL.md`**: Your skill folder or zip must include `SKILL.md` (or `skill.md`) at its root.

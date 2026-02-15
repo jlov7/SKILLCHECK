@@ -53,6 +53,14 @@ This runs a safe and a risky sample end-to-end and writes outputs to `.skillchec
 
 Use the talk track in [`docs/demo-playbook.md`](docs/demo-playbook.md).
 
+### Graphical Studio UI
+```bash
+python -m pip install -e .[ui]
+skillcheck studio
+```
+
+Launches a browser UI for guided audits, result exploration, and story-mode presentation.
+
 ### Docs entry point
 
 Start here for role-based navigation:
@@ -228,6 +236,7 @@ For remediation tips, consult [`docs/finding-remediation.md`](docs/finding-remed
 | `skillcheck report <run-dir>` | Aggregates previous runs into CSV/MD/JSON (+ optional SARIF). | `--sarif`, `--github-annotations`, `--release-gate`, `--min-trust-score`, `--fail-on-low-trust`. |
 | `skillcheck diff <repo-root>` | Audits only Skills touched between two git refs. | `--base`, `--head`, `--exec`, `--fail-on-failures`. |
 | `skillcheck fix <repo-root>` | Plans or applies safe remediations for changed Skills, with optional commit/push/PR automation. | `--dry-run`, `--apply`, `--base`, `--head`, `--commit`, `--push`, `--pr`, `--branch-name`. |
+| `skillcheck studio` | Launches the graphical SKILLCHECK Studio UI. | `--host`, `--port`, `--headless` (requires `.[ui]`). |
 | `skillcheck remediate <code>` | Prints guided fixes for a finding code. | `EGRESS_*`, `WRITE_*`, `SECRET_SUSPECT`, etc. |
 
 All commands accept either directories or `.zip` bundles containing `SKILL.md` (or `skill.md`).

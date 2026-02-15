@@ -99,6 +99,7 @@ def test_cli_help_command_outputs_guidance() -> None:
     assert result.exit_code == 0
     assert "Help" in result.output
     assert "skillcheck fix" in result.output
+    assert "skillcheck studio" in result.output
     assert "docs/help.md" in result.output
 
 
@@ -267,6 +268,15 @@ def test_cli_fix_no_changed_skills_still_writes_artifact(tmp_path: Path) -> None
     assert artifact.exists()
     payload = json.loads(artifact.read_text(encoding="utf-8"))
     assert payload["summary"]["skills_considered"] == 0
+
+
+def test_cli_studio_requires_ui_dependency(monkeypatch) -> None:
+    import skillcheck.cli as cli_module
+
+    monkeypatch.setattr(cli_module, "_streamlit_available", lambda: False)
+    result = runner.invoke(app, ["studio"])
+    assert result.exit_code == 2
+    assert "pip install -e '.[ui]'" in result.output
 
 
 def test_cli_fix_apply_updates_skill(tmp_path: Path) -> None:

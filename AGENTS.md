@@ -11,6 +11,7 @@ Repo working agreements for SKILLCHECK.
 - Sample audit (happy path):
   - `./scripts/try.sh`
   - `./scripts/demo.sh`
+  - `python -m pip install -e .[ui] && skillcheck studio`
   - `skillcheck lint examples/brand-voice-editor --policy-pack balanced --policy-version 2`
   - `skillcheck probe examples/brand-voice-editor --policy-pack balanced --policy-version 2`
   - `skillcheck report . --fail-on-failures --sarif --release-gate standard`

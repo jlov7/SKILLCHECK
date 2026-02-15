@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
+import importlib.util
 from contextlib import contextmanager
 from collections import defaultdict
 from pathlib import Path
@@ -68,6 +70,10 @@ def _resolve_fix_output_dir(output_dir: Optional[Path]) -> Path:
 
 def _exec_default() -> bool:
     return os.environ.get("SKILLCHECK_PROBE_EXEC", "").lower() in {"1", "true", "yes"}
+
+
+def _streamlit_available() -> bool:
+    return importlib.util.find_spec("streamlit") is not None
 
 
 @contextmanager
@@ -226,8 +232,39 @@ def help_cmd() -> None:
     console.print("  skillcheck probe <path>")
     console.print("  skillcheck report .")
     console.print("  skillcheck fix . --base HEAD~1 --head HEAD --dry-run")
+    console.print("  skillcheck studio")
     console.print("  skillcheck remediate <FINDING_CODE>")
     console.print("Docs: docs/help.md")
+
+
+@app.command()
+def studio(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host interface for the UI server."),
+    port: int = typer.Option(8501, "--port", help="Port for the UI server."),
+    headless: bool = typer.Option(False, "--headless/--no-headless", help="Run Studio without opening a browser."),
+) -> None:
+    """Launch SKILLCHECK Studio (graphical UI)."""
+    if not _streamlit_available():
+        raise typer.BadParameter(
+            "SKILLCHECK Studio requires Streamlit. Install with: python -m pip install -e '.[ui]'"
+        )
+    script_path = Path(__file__).with_name("studio.py")
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(script_path),
+        "--server.address",
+        host,
+        "--server.port",
+        str(port),
+    ]
+    if headless:
+        cmd.extend(["--server.headless", "true"])
+    console.print(f"Launching Studio at http://{host}:{port}", style="green")
+    result = subprocess.run(cmd, check=False)
+    raise typer.Exit(code=result.returncode)
 
 
 @app.command()
