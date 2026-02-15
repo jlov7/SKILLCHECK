@@ -7,6 +7,8 @@ SKILLCHECK is a safety-first auditor for [Agent Skills][agentskills-spec]. Align
 - **No surprises** – Default-deny policies, offline operation, and optional sandbox execution keep audits contained.
 
 > **Status:** Research preview (Apache-2.0). Synthetic sample Skills are provided for safe experimentation.
+>
+> **Independent research notice:** This repository is a personal passion project created in an individual capacity. It is not affiliated with, endorsed by, or representative of my employer, and all views and implementation choices here are my own.
 
 ---
 
