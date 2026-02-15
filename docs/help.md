@@ -29,6 +29,9 @@ Use `--output-dir docs/artifacts` when you intentionally want committed demo out
 - Install once: `python -m pip install -e .[ui]`
 - Launch: `skillcheck studio`
 - Useful flags: `--host`, `--port`, `--headless`
+- Built-in tabs: `Onboarding`, `Run Audit`, `Results`, `Storyline`, `Help`
+- UX pattern: choose journey in `Onboarding` -> run commands in `Run Audit` -> interpret outputs in `Results`
+- Help mechanics: in-app `Help` tab includes first-audit steps, demo flow, and doc pointers
 
 ## Common Issues
 - **Missing `SKILL.md`**: Your skill folder or zip must include `SKILL.md` (or `skill.md`) at its root.
@@ -36,6 +39,7 @@ Use `--output-dir docs/artifacts` when you intentionally want committed demo out
 - **Probe sandbox fails**: Use `--exec` only when you want sandbox execution; otherwise use static probing.
 - **`fix --pr` fails**: Install and authenticate GitHub CLI (`gh auth login`) before enabling `--pr`.
 - **`fix` found no changed Skills**: Check `--base`/`--head` refs and inspect `.skillcheck/fix/fix.results.json`.
+- **Studio won’t start**: Install UI extras (`python -m pip install -e .[ui]`) and re-run `skillcheck studio`.
 
 ## Tips
 - Add custom policies with `--policy path/to/policy.yaml`.

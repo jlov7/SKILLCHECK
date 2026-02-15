@@ -60,6 +60,7 @@ skillcheck studio
 ```
 
 Launches a browser UI for guided audits, result exploration, and story-mode presentation.
+Studio includes built-in onboarding, guided user journeys, in-app help mechanics, and a presenter-friendly story flow.
 
 ### Docs entry point
 
