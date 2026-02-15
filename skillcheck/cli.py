@@ -30,6 +30,20 @@ app = typer.Typer(
 console = Console()
 
 
+@app.callback(invoke_without_command=True)
+def root(ctx: typer.Context) -> None:
+    """Show onboarding guidance when no command is provided."""
+    if ctx.invoked_subcommand is not None:
+        return
+    console.print("SKILLCHECK — Audit Agent Skills", style="bold")
+    console.print("Quickstart:")
+    console.print("  skillcheck lint <path>")
+    console.print("  skillcheck probe <path>")
+    console.print("  skillcheck report .")
+    console.print("Run `skillcheck help` for more.")
+    raise typer.Exit(code=0)
+
+
 def _resolve_output_dir(output_dir: Optional[Path]) -> Path:
     target = output_dir or (Path.cwd() / ".skillcheck")
     target.mkdir(parents=True, exist_ok=True)
@@ -105,6 +119,17 @@ def _save_json(payload: dict, path: Path) -> None:
 
 def _load_policy(path: Optional[Path]) -> Policy:
     return load_policy(path)
+
+
+@app.command("help")
+def help_cmd() -> None:
+    """Print a compact help reference."""
+    console.print("Help — SKILLCHECK", style="bold")
+    console.print("Quickstart:")
+    console.print("  skillcheck lint <path>")
+    console.print("  skillcheck probe <path>")
+    console.print("  skillcheck report .")
+    console.print("Docs: docs/help.md")
 
 
 @app.command()
@@ -242,6 +267,8 @@ def report(
     artifact_root = artifacts_dir or (run_dir / ".skillcheck")
     writer = ReportWriter(artifact_root)
     result = writer.write()
+    if not result.rows:
+        console.print("No skill artifacts found. Run lint/probe first.", style="yellow")
     console.print(f"Report CSV: {result.csv_path}", style="green")
     console.print(f"Report Markdown: {result.md_path}", style="green")
     console.print(f"Report JSON: {result.json_path}", style="green")

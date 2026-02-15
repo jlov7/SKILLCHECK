@@ -8,7 +8,7 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 
 ## Progress
 - [x] Milestone 1: Steering docs + v1 design
-- [ ] Milestone 2: CLI onboarding/help UX + tests
+- [x] Milestone 2: CLI onboarding/help UX + tests
 - [ ] Milestone 3: Docs/CI quality gates + release verification
 
 ## Milestone 1: Steering Docs + v1 Design
@@ -20,12 +20,12 @@ Ship in small, reviewable milestones. Start with steering docs and a concrete v1
 - [x] Run tests/lint/typecheck/build (quality gate)
 
 ## Milestone 2: CLI Onboarding/Help UX + Tests
-- [ ] Add first-run onboarding output for `skillcheck` with no args
-- [ ] Add in-app help command with short guidance + pointers
-- [ ] Improve empty-state messages (e.g., report with no artifacts)
-- [ ] Ensure failure copy is clear for missing SKILL.md/skill.md
-- [ ] Add/adjust tests for CLI UX paths
-- [ ] Run tests/lint/typecheck/build (quality gate)
+- [x] Add first-run onboarding output for `skillcheck` with no args
+- [x] Add in-app help command with short guidance + pointers
+- [x] Improve empty-state messages (e.g., report with no artifacts)
+- [x] Ensure failure copy is clear for missing SKILL.md/skill.md (existing message already explicit)
+- [x] Add/adjust tests for CLI UX paths
+- [x] Run tests/lint/typecheck/build (quality gate)
 
 ## Milestone 3: Docs/CI Quality Gates + Release Verification
 - [ ] Add minimal help doc page and link from README

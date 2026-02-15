@@ -79,3 +79,23 @@ def test_cli_report_fail_on_failures(tmp_path: Path) -> None:
     assert summary_result.exit_code == 0
     assert "Quick Summary" in summary_result.stdout
     assert "brand-voice-editor" in summary_result.stdout
+
+
+def test_cli_first_run_shows_quickstart() -> None:
+    result = runner.invoke(app, [])
+    assert result.exit_code == 0
+    assert "Quickstart" in result.output
+    assert "skillcheck lint" in result.output
+
+
+def test_cli_help_command_outputs_guidance() -> None:
+    result = runner.invoke(app, ["help"])
+    assert result.exit_code == 0
+    assert "Help" in result.output
+    assert "docs/help.md" in result.output
+
+
+def test_report_empty_state_message(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["report", str(tmp_path), "--summary"])
+    assert result.exit_code == 0
+    assert "No skill artifacts found" in result.output
