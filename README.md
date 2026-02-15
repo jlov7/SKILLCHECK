@@ -1,5 +1,10 @@
 # SKILLCHECK (research preview)
 
+[![CI](https://github.com/jlov7/SKILLCHECK/actions/workflows/skillcheck.yml/badge.svg)](https://github.com/jlov7/SKILLCHECK/actions/workflows/skillcheck.yml)
+[![Docs](https://github.com/jlov7/SKILLCHECK/actions/workflows/docs-pages.yml/badge.svg)](https://github.com/jlov7/SKILLCHECK/actions/workflows/docs-pages.yml)
+[![Open in Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/jlov7/SKILLCHECK)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 SKILLCHECK is a safety-first auditor for [Agent Skills][agentskills-spec]. Aligned with the open specification and the [skills-ref][skills-ref] reference validator, it gives platform, RAI, and engineering teams a repeatable way to examine any Skill bundle (folder or `.zip`) *before* toggling it on. This repository is personal R&D, not a product or funded roadmap, and is shared “as is” for anyone experimenting with Skills.
 
 - **One-click confidence** – Run a single CLI command to lint, probe, and attest a Skill.
@@ -13,6 +18,7 @@ SKILLCHECK is a safety-first auditor for [Agent Skills][agentskills-spec]. Align
 ---
 
 ## Table of contents
+- [Launch in minutes](#launch-in-minutes)
 - [Who should read this](#who-should-read-this)
 - [Quickstart](#quickstart)
 - [What happens during an audit](#what-happens-during-an-audit)
@@ -28,6 +34,30 @@ SKILLCHECK is a safety-first auditor for [Agent Skills][agentskills-spec]. Align
 - [Docs & walkthroughs](#docs--walkthroughs)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## Launch in minutes
+
+### Zero-friction trial
+```bash
+./scripts/try.sh
+```
+
+This runs a safe and a risky sample end-to-end and writes outputs to `.skillcheck/`.
+
+### Guided live demo
+```bash
+./scripts/demo.sh
+```
+
+Use the talk track in [`docs/demo-playbook.md`](docs/demo-playbook.md).
+
+### Docs entry point
+
+Start here for role-based navigation:
+- [`docs/index.md`](docs/index.md)
+- [GitHub Pages (after first docs deploy)](https://jlov7.github.io/SKILLCHECK/)
 
 ---
 
@@ -321,6 +351,11 @@ See also: [Reviewer walkthrough](docs/reviewer-walkthrough.md) and [Engineer wal
 ---
 
 ## Docs & walkthroughs
+- [Launch hub](docs/index.md)
+- [Why SKILLCHECK exists](docs/why-skillcheck.md)
+- [Technical overview](docs/technical-overview.md)
+- [Demo playbook](docs/demo-playbook.md)
+- [Share pack](docs/share-pack.md)
 - [Sample report](docs/sample-results.md)
 - [Policy cookbook](docs/policy-cookbook.md)
 - [Finding remediation guide](docs/finding-remediation.md)

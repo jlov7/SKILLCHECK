@@ -2,6 +2,8 @@
 
 ## Quickstart
 ```bash
+./scripts/try.sh
+./scripts/demo.sh
 skillcheck lint <path-to-skill>
 skillcheck probe <path-to-skill>
 skillcheck report . --fail-on-failures
@@ -39,6 +41,8 @@ Use `--output-dir docs/artifacts` when you intentionally want committed demo out
 - For non-technical reviews, share `.skillcheck/results.md`.
 
 ## Next Steps
+- `docs/index.md`
+- `docs/demo-playbook.md`
 - `docs/engineer-walkthrough.md`
 - `docs/reviewer-walkthrough.md`
 - `docs/policy-cookbook.md`

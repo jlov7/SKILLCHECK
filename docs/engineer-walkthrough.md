@@ -2,6 +2,12 @@
 
 This guide shows how to integrate SKILLCHECK into developer workflows and CI pipelines.
 
+## Quick launch options
+
+- Fast local trial: `./scripts/try.sh`
+- Guided demo sequence: `./scripts/demo.sh`
+- Browser-based environment: [Open in Codespaces](https://codespaces.new/jlov7/SKILLCHECK)
+
 ## Local workflow
 
 1. Install once per repo: `python -m pip install -e .[dev]`.

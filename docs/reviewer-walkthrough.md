@@ -2,6 +2,8 @@
 
 Follow these steps to review a Skill audit without touching the terminal.
 
+If you need a static example package, use `docs/artifacts/results.md` and related files in `docs/artifacts/`.
+
 1. **Receive artifacts** (e.g., from CI or an engineer): look for `.skillcheck/` folder.
 2. **Open `.skillcheck/results.md`** in your browser or any Markdown viewer.
    - Green “PASS” rows require no action.
@@ -15,4 +17,3 @@ Follow these steps to review a Skill audit without touching the terminal.
 7. **Archive evidence** by storing the attestation JSON (if required by policy).
 
 That’s it—no command line required.
-

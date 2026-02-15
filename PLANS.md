@@ -108,3 +108,30 @@ Ship a high-complexity, production-safe remediation flow that can detect changed
 ## Outcomes & Retrospective
 - Completed with full quality gates passing and all changes pushed to `origin/master`.
 - Delivered deterministic auto-remediation with auditable artifacts and optional PR automation.
+
+---
+
+# Launch Kit & Adoption (ExecPlan)
+
+## Purpose / Big Picture
+Make SKILLCHECK effortless to try, easy to demo, and clear to explain for both technical and non-technical audiences.
+
+## Progress
+- [x] Milestone 1: Zero-friction trial/demo scripts
+- [x] Milestone 2: Launch hub and audience-specific docs
+- [x] Milestone 3: README positioning and share narrative
+- [x] Milestone 4: Codespaces and docs-publishing workflow
+- [x] Milestone 5: Final verification, commit, and push
+
+## Surprises & Discoveries
+- A scripted demo path significantly reduces presenter risk and keeps messaging consistent.
+- Committed artifact examples are best kept under `docs/artifacts` while runtime artifacts stay gitignored.
+
+## Decision Log
+- Added both `try.sh` and `demo.sh`: one optimized for first-time evaluation, one for live storytelling.
+- Added docs entry-point (`docs/index.md`) to reduce navigation friction.
+
+## Outcomes & Retrospective
+- Added a turnkey launch experience with one-command trial and scripted demo paths.
+- Added role-specific documentation and a launch hub to reduce onboarding and communication friction.
+- Added Codespaces and GitHub Pages workflows to improve access and dissemination.
