@@ -19,7 +19,7 @@ from .bundle import SkillBundleError, open_skill_bundle
 from .lint_rules import run_lint
 from .otel import emit_run_span
 from .probe import ProbeRunner
-from .report import ReportWriter
+from .report import ReportWriter, ReportFinding
 from .sbom import generate_sbom
 from .schema import Policy, find_skill_md, load_policy
 from .utils import slugify
@@ -173,6 +173,24 @@ def _render_summary_table(rows) -> None:
     console.print(summary_table)
 
 
+def _gha_escape(value: str) -> str:
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _emit_github_annotations(findings: List[ReportFinding]) -> None:
+    for finding in findings:
+        level = "error"
+        severity = finding.severity.lower()
+        if severity == "warning":
+            level = "warning"
+        elif severity not in {"error", "warning"}:
+            level = "notice"
+        file_path = _gha_escape(finding.path or "SKILL.md")
+        title = _gha_escape(finding.code)
+        message = _gha_escape(f"[{finding.skill_name}] {finding.message}")
+        console.print(f"::{level} file={file_path},line={max(1, finding.line)},title={title}::{message}")
+
+
 @app.command("help")
 def help_cmd() -> None:
     """Print a compact help reference."""
@@ -314,16 +332,28 @@ def report(
         "--summary/--no-summary",
         help="Print a condensed PASS/FAIL table to the terminal.",
     ),
+    sarif: bool = typer.Option(
+        False,
+        "--sarif/--no-sarif",
+        help="Emit SARIF findings to <artifacts>/results.sarif.",
+    ),
+    github_annotations: bool = typer.Option(
+        False,
+        "--github-annotations/--no-github-annotations",
+        help="Print GitHub Actions annotation lines for findings.",
+    ),
 ) -> None:
     """Produce CSV and Markdown report by aggregating prior runs."""
     artifact_root = artifacts_dir or (run_dir / ".skillcheck")
     writer = ReportWriter(artifact_root)
-    result = writer.write()
+    result = writer.write(write_sarif=sarif)
     if not result.rows:
         console.print("No skill artifacts found. Run lint/probe first.", style="yellow")
     console.print(f"Report CSV: {result.csv_path}", style="green")
     console.print(f"Report Markdown: {result.md_path}", style="green")
     console.print(f"Report JSON: {result.json_path}", style="green")
+    if result.sarif_path:
+        console.print(f"Report SARIF: {result.sarif_path}", style="green")
     console.print(
         f"Summary — total: {result.summary.total}, pass: {result.summary.pass_count}, fail: {result.summary.fail_count}",
         style="cyan",
@@ -338,6 +368,8 @@ def report(
         "aggregate",
         {"report.skill_count": len(result.rows)},
     )
+    if github_annotations and result.findings:
+        _emit_github_annotations(result.findings)
     if fail_on_failures and result.summary.fail_count:
         raise typer.Exit(code=1)
 

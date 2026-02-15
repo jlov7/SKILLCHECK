@@ -189,3 +189,31 @@ def test_cli_diff_no_changed_skills(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0
     assert "No changed skill files detected" in result.stdout
+
+
+def test_cli_report_outputs_sarif_and_annotations(tmp_path: Path) -> None:
+    artifact_dir = tmp_path / ".skillcheck"
+    artifact_dir.mkdir()
+    project_root = Path(__file__).resolve().parents[1]
+    policy = load_policy()
+    risky_dir = project_root / "examples" / "risky-net-egress"
+    risky_lint = run_lint(risky_dir, policy)
+    risky_probe = ProbeRunner(policy).run(risky_dir)
+    risky_slug = slugify(risky_lint.skill_name)
+    (artifact_dir / f"{risky_slug}.lint.json").write_text(json.dumps(risky_lint.to_dict()), encoding="utf-8")
+    (artifact_dir / f"{risky_slug}.probe.json").write_text(json.dumps(risky_probe.to_dict()), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            str(tmp_path),
+            "--artifacts",
+            str(artifact_dir),
+            "--sarif",
+            "--github-annotations",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (artifact_dir / "results.sarif").exists()
+    assert "::warning" in result.stdout or "::error" in result.stdout

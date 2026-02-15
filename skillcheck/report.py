@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -42,11 +43,24 @@ class ReportSummary:
 @dataclass
 class ReportResult:
     rows: List[ReportRow]
+    findings: List["ReportFinding"]
     summary: ReportSummary
     csv_path: Path
     md_path: Path
     chart_path: Optional[Path]
     json_path: Path
+    sarif_path: Optional[Path]
+
+
+@dataclass
+class ReportFinding:
+    skill_name: str
+    code: str
+    message: str
+    path: str
+    line: int
+    severity: str
+    source: str
 
 
 class ReportWriter:
@@ -64,10 +78,7 @@ class ReportWriter:
             data[skill_name] = content
         return data
 
-    def _collect_rows(self) -> List[ReportRow]:
-        lint = self._load_json_files(".lint")
-        probe = self._load_json_files(".probe")
-        attest = self._load_json_files(".attestation")
+    def _collect_rows(self, lint: Dict[str, dict], probe: Dict[str, dict], attest: Dict[str, dict]) -> List[ReportRow]:
         rows: List[ReportRow] = []
         for skill_name in sorted(set(lint.keys()) | set(probe.keys()) | set(attest.keys())):
             lint_entry = lint.get(skill_name, {})
@@ -88,6 +99,58 @@ class ReportWriter:
                 )
             )
         return rows
+
+    def _collect_findings(self, lint: Dict[str, dict], probe: Dict[str, dict]) -> List[ReportFinding]:
+        findings: List[ReportFinding] = []
+        for skill_name, lint_entry in lint.items():
+            for issue in lint_entry.get("issues", []) or []:
+                if not isinstance(issue, dict):
+                    continue
+                severity = str(issue.get("severity") or "error")
+                path = str(issue.get("path") or "SKILL.md")
+                message = str(issue.get("message") or "")
+                code = str(issue.get("code") or "LINT")
+                findings.append(
+                    ReportFinding(
+                        skill_name=skill_name,
+                        code=code,
+                        message=message,
+                        path=path,
+                        line=1,
+                        severity=severity,
+                        source="lint",
+                    )
+                )
+        for skill_name, probe_entry in probe.items():
+            for section, source_code in (("egress_attempts", "probe-egress"), ("disallowed_writes", "probe-write")):
+                for item in probe_entry.get(section, []) or []:
+                    if not isinstance(item, dict):
+                        continue
+                    code = str(item.get("code") or "PROBE")
+                    message = str(item.get("message") or "")
+                    path, detail = self._extract_probe_path(message)
+                    findings.append(
+                        ReportFinding(
+                            skill_name=skill_name,
+                            code=code,
+                            message=detail,
+                            path=path,
+                            line=1,
+                            severity="error",
+                            source=source_code,
+                        )
+                    )
+        return findings
+
+    def _extract_probe_path(self, message: str) -> tuple[str, str]:
+        match = re.match(r"^(?P<path>[^:\n]+):\s*(?P<detail>.+)$", message)
+        if not match:
+            return "SKILL.md", message
+        path = (match.group("path") or "").strip()
+        detail = (match.group("detail") or message).strip()
+        if "/" in path or "." in path:
+            return path, detail
+        return "SKILL.md", message
 
     def _write_csv(self, rows: List[ReportRow]) -> Path:
         csv_path = self.artifact_dir / "results.csv"
@@ -171,6 +234,56 @@ class ReportWriter:
         json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return json_path
 
+    def _write_sarif(self, findings: List[ReportFinding]) -> Path:
+        sarif_path = self.artifact_dir / "results.sarif"
+        rules: Dict[str, Dict[str, object]] = {}
+        results: List[Dict[str, object]] = []
+        for finding in findings:
+            if finding.code not in rules:
+                rules[finding.code] = {
+                    "id": finding.code,
+                    "shortDescription": {"text": finding.code},
+                    "help": {"text": finding.message},
+                }
+            level = "error"
+            if finding.severity.lower() == "warning":
+                level = "warning"
+            elif finding.severity.lower() not in {"error", "warning"}:
+                level = "note"
+            results.append(
+                {
+                    "ruleId": finding.code,
+                    "level": level,
+                    "message": {"text": f"[{finding.skill_name}] {finding.message}"},
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {"uri": finding.path},
+                                "region": {"startLine": max(1, finding.line)},
+                            }
+                        }
+                    ],
+                }
+            )
+        payload = {
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "version": "2.1.0",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "SKILLCHECK",
+                            "informationUri": "https://github.com/jlov7/SKILLCHECK",
+                            "rules": [rules[key] for key in sorted(rules.keys())],
+                        }
+                    },
+                    "results": results,
+                }
+            ],
+        }
+        sarif_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return sarif_path
+
     def _summarize(self, rows: List[ReportRow]) -> ReportSummary:
         pass_count = sum(1 for row in rows if row.status == "pass")
         fail_count = sum(1 for row in rows if row.status != "pass")
@@ -194,11 +307,25 @@ class ReportWriter:
         plt.close()
         return chart_path
 
-    def write(self) -> ReportResult:
-        rows = self._collect_rows()
+    def write(self, *, write_sarif: bool = False) -> ReportResult:
+        lint = self._load_json_files(".lint")
+        probe = self._load_json_files(".probe")
+        attest = self._load_json_files(".attestation")
+        rows = self._collect_rows(lint, probe, attest)
+        findings = self._collect_findings(lint, probe)
         summary = self._summarize(rows)
         csv_path = self._write_csv(rows)
         chart_path = self._write_chart(rows)
         md_path = self._write_markdown(rows, chart_path, summary)
         json_path = self._write_json(rows, summary)
-        return ReportResult(rows=rows, summary=summary, csv_path=csv_path, md_path=md_path, chart_path=chart_path, json_path=json_path)
+        sarif_path = self._write_sarif(findings) if write_sarif else None
+        return ReportResult(
+            rows=rows,
+            findings=findings,
+            summary=summary,
+            csv_path=csv_path,
+            md_path=md_path,
+            chart_path=chart_path,
+            json_path=json_path,
+            sarif_path=sarif_path,
+        )
