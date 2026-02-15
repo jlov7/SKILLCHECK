@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+.DS_Store
 build/
 dist/
 *.egg-info/
@@ -14,5 +15,6 @@ dist/
 /htmlcov/
 *.log
 .skillcheck/
-.specstory/.project.json
+.codex/
+.specstory/
 .worktrees/

@@ -1,7 +1,5 @@
 # Autonomous Remediation PR Bot Implementation Plan
 
-> **For Codex:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add `skillcheck fix --pr` that audits changed skills, auto-applies safe remediations, verifies improvements, and can open a remediation PR.
 
 **Architecture:** Add a deterministic remediation engine (`skillcheck/fixer.py`) that consumes lint findings and skill metadata, performs safe edits only, and emits a machine-readable remediation summary. Add CLI orchestration in `skillcheck/cli.py` to run changed-skill discovery, pre/post audits, trust delta computation, optional git branch/commit/push/PR operations, and summary artifacts.
@@ -31,7 +29,7 @@
 ## Exhaustive TODO Checklist
 
 ### Phase 0: Tracking + Baseline
-- [x] Create `.codex/SCRATCHPAD.md` with live execution state.
+- [x] Create live execution-state tracking notes.
 - [x] Add this feature plan document.
 - [x] Capture baseline command outputs (`ruff`, `mypy`, `pytest`, `build`).
 
@@ -71,7 +69,7 @@
 
 ### Phase 5: Full Verification + Release
 - [x] Run full gate: `ruff`, `mypy`, `pytest`, `python -m build`.
-- [x] Capture final outcomes in `.codex/SCRATCHPAD.md`.
+- [x] Capture final outcomes in planning/tracking docs.
 - [x] Commit in reviewable chunks with conventional commit messages.
 - [x] Push to `origin/master`.
 - [x] Report completion with commands and artifact locations.

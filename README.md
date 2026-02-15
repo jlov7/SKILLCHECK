@@ -74,7 +74,7 @@ python -m skillcheck.cli report . --fail-on-failures
 - Open a ready-made example: [`docs/sample-results.md`](docs/sample-results.md)
 - Review golden demo artifacts: [`docs/artifacts/`](docs/artifacts)
 
-> **Tip:** non-technical reviewers can open `.skillcheck/results.md`; automation can ingest `.skillcheck/results.json`.
+> **Tip:** non-technical reviewers can open `.skillcheck/results.md`; automation can ingest `.skillcheck/results.json`. For committed examples, use `docs/artifacts/results.md` and `docs/artifacts/results.json`.
 
 ---
 
@@ -114,6 +114,11 @@ python -m build
 | `SKILLCHECK_OTEL_EXPORTER` | Set to `console` or `otlp` to enable OpenTelemetry spans. |
 
 For a quick CLI reference, run `skillcheck help` or see `docs/help.md`.
+
+### Repository hygiene
+- Runtime artifacts are generated under `.skillcheck/` and are intentionally gitignored.
+- Curated, reproducible documentation artifacts are committed under `docs/artifacts/`.
+- Local IDE/session folders (for example `.codex/`, `.specstory/`, `.worktrees/`) are ignored.
 
 ## What happens during an audit
 
@@ -285,7 +290,7 @@ For CI best practices, see [`docs/engineer-walkthrough.md`](docs/engineer-walkth
 - Default policy (`skillcheck/policies/default.policy.yaml`) denies egress and restricts writes to `scratch/**`.
 - Customize policies with snippets from the [Policy Cookbook](docs/policy-cookbook.md).
 - Keep policies in source control and layer environment overrides via `--policy`.
-- Documents waivers with justification; they appear in attestation outputs.
+- Document waivers with justification; they appear in attestation outputs.
 
 ---
 

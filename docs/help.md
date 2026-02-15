@@ -11,6 +11,7 @@ skillcheck remediate EGRESS_SANDBOX
 ```
 
 Artifacts are written to `.skillcheck/` by default.
+Use `--output-dir docs/artifacts` when you intentionally want committed demo outputs.
 
 `fix` writes remediation artifacts to `.skillcheck/fix/fix.results.json` by default.
 
