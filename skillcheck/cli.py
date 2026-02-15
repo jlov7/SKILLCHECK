@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from contextlib import contextmanager
+from collections import defaultdict
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Dict, Iterator, List, Optional
 
 import typer
 from rich.console import Console
@@ -19,7 +21,7 @@ from .otel import emit_run_span
 from .probe import ProbeRunner
 from .report import ReportWriter
 from .sbom import generate_sbom
-from .schema import Policy, load_policy
+from .schema import Policy, find_skill_md, load_policy
 from .utils import slugify
 
 app = typer.Typer(
@@ -46,6 +48,12 @@ def root(ctx: typer.Context) -> None:
 
 def _resolve_output_dir(output_dir: Optional[Path]) -> Path:
     target = output_dir or (Path.cwd() / ".skillcheck")
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _resolve_diff_output_dir(output_dir: Optional[Path]) -> Path:
+    target = output_dir or (Path.cwd() / ".skillcheck" / "diff")
     target.mkdir(parents=True, exist_ok=True)
     return target
 
@@ -119,6 +127,50 @@ def _save_json(payload: dict, path: Path) -> None:
 
 def _load_policy(path: Optional[Path]) -> Policy:
     return load_policy(path)
+
+
+def _git_changed_files(run_dir: Path, base: str, head: str) -> List[str]:
+    cmd = ["git", "-C", str(run_dir), "diff", "--name-only", base, head]
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "Unknown git error"
+        raise typer.BadParameter(f"Unable to diff refs '{base}'..'{head}': {stderr}")
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return lines
+
+
+def _find_skill_root(repo_root: Path, changed_path: str) -> Optional[Path]:
+    candidate = repo_root / changed_path
+    current = candidate if candidate.is_dir() else candidate.parent
+    while True:
+        if find_skill_md(current):
+            return current
+        if current == repo_root:
+            return None
+        current = current.parent
+
+
+def _clear_diff_artifacts(artifact_dir: Path) -> None:
+    for pattern in ("*.lint.json", "*.probe.json", "results.csv", "results.md", "results.json", "results_chart.png"):
+        for artifact in artifact_dir.glob(pattern):
+            artifact.unlink()
+
+
+def _render_summary_table(rows) -> None:
+    summary_table = Table(title="Quick Summary", expand=False)
+    summary_table.add_column("Skill", style="bold")
+    summary_table.add_column("Lint", justify="right")
+    summary_table.add_column("Probe", justify="right")
+    summary_table.add_column("Status", style="bold")
+    for row in rows:
+        probe_issues = row.probe_egress + row.probe_writes
+        summary_table.add_row(
+            row.skill_name,
+            str(row.lint_violations),
+            str(probe_issues),
+            row.status.upper(),
+        )
+    console.print(summary_table)
 
 
 @app.command("help")
@@ -280,25 +332,81 @@ def report(
         if not result.rows:
             console.print("No skills found in artifacts.", style="yellow")
         else:
-            summary_table = Table(title="Quick Summary", expand=False)
-            summary_table.add_column("Skill", style="bold")
-            summary_table.add_column("Lint", justify="right")
-            summary_table.add_column("Probe", justify="right")
-            summary_table.add_column("Status", style="bold")
-            for row in result.rows:
-                probe_issues = row.probe_egress + row.probe_writes
-                summary_table.add_row(
-                    row.skill_name,
-                    str(row.lint_violations),
-                    str(probe_issues),
-                    row.status.upper(),
-                )
-            console.print(summary_table)
+            _render_summary_table(result.rows)
     emit_run_span(
         "report",
         "aggregate",
         {"report.skill_count": len(result.rows)},
     )
+    if fail_on_failures and result.summary.fail_count:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def diff(
+    run_dir: Path = typer.Argument(
+        ..., exists=True, file_okay=False, help="Git repository root containing skills."
+    ),
+    base: str = typer.Option("HEAD~1", "--base", help="Base git ref for changed-files diff."),
+    head: str = typer.Option("HEAD", "--head", help="Head git ref for changed-files diff."),
+    policy: Optional[Path] = typer.Option(None, "--policy", "-p", help="Path to policy YAML."),
+    output_dir: Optional[Path] = typer.Option(
+        None,
+        "--output-dir",
+        help="Directory for diff artifacts (default: ./.skillcheck/diff).",
+    ),
+    exec_probe: bool = typer.Option(
+        _exec_default(),
+        "--exec/--no-exec",
+        help="Execute Python scripts in an isolated sandbox runner.",
+    ),
+    fail_on_failures: bool = typer.Option(
+        False,
+        "--fail-on-failures/--no-fail-on-failures",
+        help="Exit with non-zero status if any changed skill fails lint or probe checks.",
+    ),
+    summary: bool = typer.Option(
+        True,
+        "--summary/--no-summary",
+        help="Print a condensed PASS/FAIL table for changed skills.",
+    ),
+) -> None:
+    """Run lint/probe only for skills touched between two git refs."""
+    changed_files = _git_changed_files(run_dir, base, head)
+    changed_skills: Dict[Path, List[str]] = defaultdict(list)
+    for changed_file in changed_files:
+        skill_root = _find_skill_root(run_dir, changed_file)
+        if skill_root is None:
+            continue
+        changed_skills[skill_root].append(changed_file)
+
+    if not changed_skills:
+        console.print(f"No changed skill files detected between {base} and {head}.", style="yellow")
+        raise typer.Exit(code=0)
+
+    policy_obj = _load_policy(policy)
+    artifacts_dir = _resolve_diff_output_dir(output_dir)
+    _clear_diff_artifacts(artifacts_dir)
+
+    for skill_root, files in sorted(changed_skills.items(), key=lambda item: str(item[0])):
+        lint_report = run_lint(skill_root, policy_obj)
+        probe_report = ProbeRunner(policy_obj, enable_exec=exec_probe).run(skill_root)
+        stem = slugify(lint_report.skill_name)
+        _save_json(lint_report.to_dict(), artifacts_dir / f"{stem}.lint.json")
+        _save_json(probe_report.to_dict(), artifacts_dir / f"{stem}.probe.json")
+        console.print(f"Audited {lint_report.skill_name} ({len(files)} changed files)", style="cyan")
+
+    writer = ReportWriter(artifacts_dir)
+    result = writer.write()
+    console.print(f"Diff report CSV: {result.csv_path}", style="green")
+    console.print(f"Diff report Markdown: {result.md_path}", style="green")
+    console.print(f"Diff report JSON: {result.json_path}", style="green")
+    console.print(
+        f"Changed skills audited: {result.summary.total}, pass: {result.summary.pass_count}, fail: {result.summary.fail_count}",
+        style="cyan",
+    )
+    if summary and result.rows:
+        _render_summary_table(result.rows)
     if fail_on_failures and result.summary.fail_count:
         raise typer.Exit(code=1)
 

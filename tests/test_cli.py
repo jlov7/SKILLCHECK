@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -120,3 +121,71 @@ def test_readme_mentions_deploy_and_env_vars() -> None:
     content = Path("README.md").read_text()
     assert "Deploy" in content or "Release" in content
     assert "Environment variables" in content or "Env vars" in content
+
+
+def _init_git_repo_with_two_skills(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for skill_name in ("skill-a", "skill-b"):
+        skill_dir = repo / skill_name
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            f"""---
+name: {skill_name}
+description: "Skill {skill_name}"
+---
+
+# {skill_name}
+""",
+            encoding="utf-8",
+        )
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+    (repo / "skill-a" / "notes.md").write_text("changed", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "change skill a"], cwd=repo, check=True, capture_output=True, text=True)
+    return repo
+
+
+def test_cli_diff_audits_only_changed_skills(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_two_skills(tmp_path)
+    out_dir = repo / ".skillcheck-diff"
+    result = runner.invoke(
+        app,
+        [
+            "diff",
+            str(repo),
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+            "--output-dir",
+            str(out_dir),
+        ],
+    )
+    assert result.exit_code == 0
+    assert (out_dir / "skill-a.lint.json").exists()
+    assert (out_dir / "skill-a.probe.json").exists()
+    assert not (out_dir / "skill-b.lint.json").exists()
+    payload = json.loads((out_dir / "results.json").read_text(encoding="utf-8"))
+    assert payload["summary"]["total"] == 1
+
+
+def test_cli_diff_no_changed_skills(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_two_skills(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "diff",
+            str(repo),
+            "--base",
+            "HEAD",
+            "--head",
+            "HEAD",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "No changed skill files detected" in result.stdout
