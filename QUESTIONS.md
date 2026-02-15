@@ -1,9 +1,24 @@
 # Questions
 
-Log open decisions here while continuing work. Resolve as answers arrive.
+Resolved decisions (set on February 15, 2026):
 
-- What is the intended v1 distribution target (PyPI release, GitHub release assets, or repo-only)?
-- Should v1 explicitly support Windows (sandbox execution is limited), or is macOS/Linux sufficient for now?
-- Is a signed attestation required by default for v1, or is unsigned acceptable unless `attest` extras are installed?
-- Are there specific CI providers or required status checks beyond GitHub Actions?
-- For v1.1 trust gates, should `standard` (80) or `strict` (90) be the default in CI?
+1. Distribution target (v1):
+   - Use GitHub Releases as the canonical distribution channel (source + wheel artifacts).
+   - Keep repo-install (`pip install -e .`) fully supported.
+   - Defer PyPI publishing until after a stabilization cycle (post-v1).
+
+2. Platform support (v1):
+   - Official support: macOS and Linux.
+   - Windows is best-effort for static flows (`lint`, `report`, `attest`) and not an execution-sandbox target for v1.
+
+3. Attestation signing default (v1):
+   - Unsigned attestation is acceptable by default.
+   - Signed attestation remains opt-in when `attest` extras + signing infrastructure are available.
+
+4. CI provider and required checks (v1):
+   - GitHub Actions is the required CI provider for this repo.
+   - Require the SKILLCHECK workflow status checks before merge.
+
+5. Trust gate default (v1.1+):
+   - Default to `--release-gate standard` in CI.
+   - Use `strict` for release branches/tags or higher-assurance environments.

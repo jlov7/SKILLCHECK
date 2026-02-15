@@ -33,9 +33,9 @@ test:
         python-version: "3.11"
     - run: |
         python -m pip install -e .[dev]
-        python -m skillcheck.cli lint skills/customer_support --policy-pack strict --policy-version 2
-        python -m skillcheck.cli probe skills/customer_support --exec --policy-pack strict --policy-version 2
-        python -m skillcheck.cli report . --fail-on-failures --sarif --release-gate strict
+        python -m skillcheck.cli lint skills/customer_support --policy-pack balanced --policy-version 2
+        python -m skillcheck.cli probe skills/customer_support --exec --policy-pack balanced --policy-version 2
+        python -m skillcheck.cli report . --fail-on-failures --sarif --release-gate standard
     - uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: .skillcheck/results.sarif
@@ -51,6 +51,7 @@ Key flags:
 - `--policy-pack` and `--policy-version` lock governance behavior across environments.
 - `--artifacts <dir>` lets you store outputs outside the repo root (useful in multi-step pipelines).
 - `--policy` points to environment-specific policies (e.g., staging vs production).
+- Use `--release-gate standard` as the default CI baseline; escalate to `strict` for release branches/tags.
 - `fix --dry-run/--apply` helps teams auto-clean safe schema/frontmatter issues before review.
 - `fix --pr` requires GitHub CLI (`gh`) and enforces `--pr -> --push -> --commit -> --apply`.
 

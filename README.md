@@ -258,6 +258,16 @@ For CI best practices, see [`docs/engineer-walkthrough.md`](docs/engineer-walkth
 
 ---
 
+## v1 defaults
+
+- **Distribution**: GitHub Releases (source + wheel artifacts) are the canonical release channel for v1.
+- **Platforms**: macOS/Linux are officially supported; Windows is best-effort for static checks.
+- **Attestation signing**: unsigned is acceptable by default; signing is opt-in when configured.
+- **CI baseline**: GitHub Actions with SKILLCHECK workflow checks required before merge.
+- **Release gate default**: `standard` in CI; use `strict` for release branches/tags when needed.
+
+---
+
 ## FAQ
 
 - **What if a Skill legitimately needs network access?** Add the destination to `allow.network.hosts` or document a waiver. The attestation records every waiver.
