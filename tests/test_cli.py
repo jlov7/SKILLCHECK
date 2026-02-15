@@ -98,6 +98,7 @@ def test_cli_help_command_outputs_guidance() -> None:
     result = runner.invoke(app, ["help"])
     assert result.exit_code == 0
     assert "Help" in result.output
+    assert "skillcheck fix" in result.output
     assert "docs/help.md" in result.output
 
 
@@ -150,6 +151,33 @@ description: "Skill {skill_name}"
     return repo
 
 
+def _init_git_repo_with_broken_skill(tmp_path: Path) -> Path:
+    repo = tmp_path / "broken-repo"
+    repo.mkdir()
+    skill_dir = repo / "broken-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        """---
+name: BAD Skill !!!
+description: "Broken skill"
+unknown_field: true
+---
+
+# Broken
+""",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+    (skill_dir / "notes.md").write_text("changed", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "change broken skill"], cwd=repo, check=True, capture_output=True, text=True)
+    return repo
+
+
 def test_cli_diff_audits_only_changed_skills(tmp_path: Path) -> None:
     repo = _init_git_repo_with_two_skills(tmp_path)
     out_dir = repo / ".skillcheck-diff"
@@ -189,6 +217,142 @@ def test_cli_diff_no_changed_skills(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0
     assert "No changed skill files detected" in result.stdout
+
+
+def test_cli_fix_dry_run_outputs_artifact(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_broken_skill(tmp_path)
+    out_dir = repo / ".skillcheck-fix"
+    result = runner.invoke(
+        app,
+        [
+            "fix",
+            str(repo),
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+            "--output-dir",
+            str(out_dir),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    artifact = out_dir / "fix.results.json"
+    assert artifact.exists()
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    assert payload["summary"]["skills_considered"] == 1
+    assert payload["summary"]["skills_changed"] == 0
+
+
+def test_cli_fix_no_changed_skills_still_writes_artifact(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_broken_skill(tmp_path)
+    out_dir = repo / ".skillcheck-fix"
+    result = runner.invoke(
+        app,
+        [
+            "fix",
+            str(repo),
+            "--base",
+            "HEAD",
+            "--head",
+            "HEAD",
+            "--output-dir",
+            str(out_dir),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "No changed skill files detected" in result.stdout
+    artifact = out_dir / "fix.results.json"
+    assert artifact.exists()
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    assert payload["summary"]["skills_considered"] == 0
+
+
+def test_cli_fix_apply_updates_skill(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_broken_skill(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "fix",
+            str(repo),
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0
+    fixed_content = (repo / "broken-skill" / "SKILL.md").read_text(encoding="utf-8")
+    assert "name: broken-skill" in fixed_content
+    assert "unknown_field" not in fixed_content
+
+
+def test_cli_fix_rejects_pr_without_push(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_broken_skill(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "fix",
+            str(repo),
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+            "--apply",
+            "--pr",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "requires --push" in result.output
+
+
+def test_cli_fix_rejects_push_without_commit(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_broken_skill(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "fix",
+            str(repo),
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+            "--apply",
+            "--push",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "requires --commit" in result.output
+
+
+def test_cli_fix_commit_creates_commit(tmp_path: Path) -> None:
+    repo = _init_git_repo_with_broken_skill(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "fix",
+            str(repo),
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+            "--apply",
+            "--commit",
+            "--branch-name",
+            "autofix-test",
+        ],
+    )
+    assert result.exit_code == 0
+    log = subprocess.run(
+        ["git", "log", "--oneline", "-n", "1"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "skillcheck: auto remediate changed skills" in log.stdout
 
 
 def test_cli_report_outputs_sarif_and_annotations(tmp_path: Path) -> None:

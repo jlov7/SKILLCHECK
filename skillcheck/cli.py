@@ -8,7 +8,7 @@ import subprocess
 from contextlib import contextmanager
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import typer
 from rich.console import Console
@@ -16,6 +16,7 @@ from rich.table import Table
 
 from .attest import AttestationBuilder
 from .bundle import SkillBundleError, open_skill_bundle
+from .fixer import run_safe_remediation
 from .lint_rules import run_lint
 from .otel import emit_run_span
 from .probe import ProbeRunner
@@ -55,6 +56,12 @@ def _resolve_output_dir(output_dir: Optional[Path]) -> Path:
 
 def _resolve_diff_output_dir(output_dir: Optional[Path]) -> Path:
     target = output_dir or (Path.cwd() / ".skillcheck" / "diff")
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _resolve_fix_output_dir(output_dir: Optional[Path]) -> Path:
+    target = output_dir or (Path.cwd() / ".skillcheck" / "fix")
     target.mkdir(parents=True, exist_ok=True)
     return target
 
@@ -135,7 +142,10 @@ def _load_policy(path: Optional[Path], policy_pack: Optional[str], policy_versio
 
 def _git_changed_files(run_dir: Path, base: str, head: str) -> List[str]:
     cmd = ["git", "-C", str(run_dir), "diff", "--name-only", base, head]
-    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        raise typer.BadParameter("Git executable is required for `skillcheck fix` and `skillcheck diff`.") from exc
     if result.returncode != 0:
         stderr = result.stderr.strip() or "Unknown git error"
         raise typer.BadParameter(f"Unable to diff refs '{base}'..'{head}': {stderr}")
@@ -179,6 +189,16 @@ def _render_summary_table(rows) -> None:
     console.print(summary_table)
 
 
+def _calculate_trust_score(lint_violations: int, probe_egress: int, probe_writes: int, waivers_count: int = 0) -> float:
+    score = 100.0
+    score -= 15.0 * lint_violations
+    score -= 20.0 * probe_egress
+    score -= 20.0 * probe_writes
+    score -= 2.0 * waivers_count
+    score = max(0.0, min(100.0, score))
+    return round(score, 2)
+
+
 def _gha_escape(value: str) -> str:
     return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
@@ -205,6 +225,7 @@ def help_cmd() -> None:
     console.print("  skillcheck lint <path>")
     console.print("  skillcheck probe <path>")
     console.print("  skillcheck report .")
+    console.print("  skillcheck fix . --base HEAD~1 --head HEAD --dry-run")
     console.print("  skillcheck remediate <FINDING_CODE>")
     console.print("Docs: docs/help.md")
 
@@ -463,6 +484,311 @@ def report(
         raise typer.Exit(code=1)
     if effective_fail_on_low_trust and low_trust_rows:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def fix(
+    run_dir: Path = typer.Argument(
+        ..., exists=True, file_okay=False, help="Git repository root containing skills."
+    ),
+    base: str = typer.Option("HEAD~1", "--base", help="Base git ref for changed-files diff."),
+    head: str = typer.Option("HEAD", "--head", help="Head git ref for changed-files diff."),
+    policy: Optional[Path] = typer.Option(None, "--policy", "-p", help="Path to policy YAML."),
+    policy_pack: Optional[str] = typer.Option(
+        None,
+        "--policy-pack",
+        help="Built-in policy pack (strict|balanced|research|enterprise).",
+    ),
+    policy_version: Optional[int] = typer.Option(
+        None,
+        "--policy-version",
+        help="Require the loaded policy version to match this value.",
+    ),
+    output_dir: Optional[Path] = typer.Option(
+        None,
+        "--output-dir",
+        help="Directory for fix artifacts (default: ./.skillcheck/fix).",
+    ),
+    exec_probe: bool = typer.Option(
+        _exec_default(),
+        "--exec/--no-exec",
+        help="Execute Python scripts in an isolated sandbox runner during pre/post checks.",
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply/--dry-run",
+        help="Apply remediations. Dry-run is default and writes no files.",
+    ),
+    commit: bool = typer.Option(
+        False,
+        "--commit/--no-commit",
+        help="Create a git commit with applied remediations.",
+    ),
+    push: bool = typer.Option(
+        False,
+        "--push/--no-push",
+        help="Push remediation branch after commit.",
+    ),
+    pr: bool = typer.Option(
+        False,
+        "--pr/--no-pr",
+        help="Open a pull request after push.",
+    ),
+    branch_name: Optional[str] = typer.Option(
+        None,
+        "--branch-name",
+        help="Branch to create/switch before commit.",
+    ),
+    commit_message: str = typer.Option(
+        "skillcheck: auto remediate changed skills",
+        "--commit-message",
+        help="Commit message used when --commit is enabled.",
+    ),
+    pr_title: str = typer.Option(
+        "skillcheck: auto remediation updates",
+        "--pr-title",
+        help="Pull request title used when --pr is enabled.",
+    ),
+) -> None:
+    """Run deterministic safe remediations for changed skills."""
+    if pr and not push:
+        raise typer.BadParameter("--pr requires --push")
+    if push and not commit:
+        raise typer.BadParameter("--push requires --commit")
+    if commit and not apply:
+        raise typer.BadParameter("--commit requires --apply")
+
+    artifacts_dir = _resolve_fix_output_dir(output_dir)
+    changed_files = _git_changed_files(run_dir, base, head)
+    changed_skills: Dict[Path, List[str]] = defaultdict(list)
+    for changed_file in changed_files:
+        skill_root = _find_skill_root(run_dir, changed_file)
+        if skill_root is None:
+            continue
+        changed_skills[skill_root].append(changed_file)
+
+    if not changed_skills:
+        empty_payload: Dict[str, Any] = {
+            "mode": "apply" if apply else "dry-run",
+            "refs": {"base": base, "head": head},
+            "summary": {
+                "skills_considered": 0,
+                "skills_changed": 0,
+                "applied_actions": 0,
+                "skipped_actions": 0,
+                "pre_avg_trust_score": 0.0,
+                "post_avg_trust_score": 0.0,
+                "trust_delta": 0.0,
+            },
+            "skills": [],
+            "git": {
+                "commit_requested": commit,
+                "push_requested": push,
+                "pr_requested": pr,
+                "branch_name": branch_name,
+                "commit_created": False,
+                "pushed": False,
+                "pr_url": "",
+            },
+        }
+        artifact_path = artifacts_dir / "fix.results.json"
+        artifact_path.write_text(json.dumps(empty_payload, indent=2), encoding="utf-8")
+        console.print(f"Fix artifact JSON: {artifact_path}", style="green")
+        console.print(f"No changed skill files detected between {base} and {head}.", style="yellow")
+        raise typer.Exit(code=0)
+
+    policy_obj = _load_policy(policy, policy_pack, policy_version)
+    skills_payload: List[Dict[str, Any]] = []
+    total_applied = 0
+    total_skipped = 0
+    total_changed = 0
+    pre_scores: List[float] = []
+    post_scores: List[float] = []
+    git_add_paths: List[str] = []
+
+    for skill_root, files in sorted(changed_skills.items(), key=lambda item: str(item[0])):
+        lint_before = run_lint(skill_root, policy_obj)
+        probe_before = ProbeRunner(policy_obj, enable_exec=exec_probe).run(skill_root)
+        pre_score = _calculate_trust_score(
+            lint_before.violations_count,
+            len(probe_before.egress_attempts),
+            len(probe_before.disallowed_writes),
+            waivers_count=len(policy_obj.waivers),
+        )
+
+        remediation = run_safe_remediation(skill_root, lint_before, policy_obj, apply=apply)
+        lint_after = run_lint(skill_root, policy_obj)
+        probe_after = ProbeRunner(policy_obj, enable_exec=exec_probe).run(skill_root)
+        post_score = _calculate_trust_score(
+            lint_after.violations_count,
+            len(probe_after.egress_attempts),
+            len(probe_after.disallowed_writes),
+            waivers_count=len(policy_obj.waivers),
+        )
+
+        total_applied += len(remediation.applied)
+        total_skipped += len(remediation.skipped)
+        if remediation.changed:
+            total_changed += 1
+            for changed_file in remediation.changed_files:
+                git_add_paths.append(str((skill_root / changed_file).relative_to(run_dir)))
+
+        pre_scores.append(pre_score)
+        post_scores.append(post_score)
+
+        skills_payload.append(
+            {
+                "skill_name": lint_after.skill_name,
+                "path": str(skill_root),
+                "changed_files_in_diff": files,
+                "remediation": remediation.to_dict(),
+                "pre": {
+                    "lint_violations": lint_before.violations_count,
+                    "probe_egress": len(probe_before.egress_attempts),
+                    "probe_writes": len(probe_before.disallowed_writes),
+                    "trust_score": pre_score,
+                },
+                "post": {
+                    "lint_violations": lint_after.violations_count,
+                    "probe_egress": len(probe_after.egress_attempts),
+                    "probe_writes": len(probe_after.disallowed_writes),
+                    "trust_score": post_score,
+                },
+            }
+        )
+
+        mode_label = "Applied" if apply else "Planned"
+        console.print(
+            f"{mode_label} remediations for {lint_after.skill_name}: "
+            f"applied={len(remediation.applied)} skipped={len(remediation.skipped)} changed={remediation.changed}",
+            style="cyan",
+        )
+
+    pre_avg = round(sum(pre_scores) / len(pre_scores), 2) if pre_scores else 0.0
+    post_avg = round(sum(post_scores) / len(post_scores), 2) if post_scores else 0.0
+    summary_data: Dict[str, Any] = {
+        "skills_considered": len(skills_payload),
+        "skills_changed": total_changed,
+        "applied_actions": total_applied,
+        "skipped_actions": total_skipped,
+        "pre_avg_trust_score": pre_avg,
+        "post_avg_trust_score": post_avg,
+        "trust_delta": round(post_avg - pre_avg, 2),
+    }
+    git_meta: Dict[str, Any] = {
+        "commit_requested": commit,
+        "push_requested": push,
+        "pr_requested": pr,
+        "branch_name": branch_name,
+        "commit_created": False,
+        "pushed": False,
+        "pr_url": "",
+    }
+    payload: Dict[str, Any] = {
+        "mode": "apply" if apply else "dry-run",
+        "refs": {"base": base, "head": head},
+        "summary": summary_data,
+        "skills": skills_payload,
+        "git": git_meta,
+    }
+
+    if commit and total_changed:
+        if branch_name:
+            exists = subprocess.run(
+                ["git", "-C", str(run_dir), "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+                check=False,
+            ).returncode == 0
+            checkout_cmd = ["git", "-C", str(run_dir), "checkout", branch_name] if exists else [
+                "git",
+                "-C",
+                str(run_dir),
+                "checkout",
+                "-b",
+                branch_name,
+            ]
+            checkout = subprocess.run(checkout_cmd, check=False, capture_output=True, text=True)
+            if checkout.returncode != 0:
+                raise typer.BadParameter(f"Unable to switch branch '{branch_name}': {checkout.stderr.strip()}")
+        unique_paths = sorted(set(git_add_paths))
+        add_cmd = ["git", "-C", str(run_dir), "add", *unique_paths]
+        add_result = subprocess.run(add_cmd, check=False, capture_output=True, text=True)
+        if add_result.returncode != 0:
+            raise typer.BadParameter(f"Unable to stage remediation changes: {add_result.stderr.strip()}")
+        commit_result = subprocess.run(
+            ["git", "-C", str(run_dir), "commit", "-m", commit_message],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if commit_result.returncode != 0:
+            stderr = commit_result.stderr.strip() or commit_result.stdout.strip()
+            raise typer.BadParameter(f"Unable to create remediation commit: {stderr}")
+        git_meta["commit_created"] = True
+        console.print("Created remediation commit.", style="green")
+
+        if push:
+            current_branch = subprocess.run(
+                ["git", "-C", str(run_dir), "rev-parse", "--abbrev-ref", "HEAD"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if current_branch.returncode != 0:
+                raise typer.BadParameter("Unable to determine current branch for push")
+            branch_to_push = current_branch.stdout.strip()
+            push_result = subprocess.run(
+                ["git", "-C", str(run_dir), "push", "-u", "origin", branch_to_push],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if push_result.returncode != 0:
+                raise typer.BadParameter(f"Unable to push remediation branch: {push_result.stderr.strip()}")
+            git_meta["pushed"] = True
+            console.print(f"Pushed remediation branch: {branch_to_push}", style="green")
+
+            if pr:
+                pr_body = (
+                    "## Summary\\n"
+                    f"- Auto-remediated changed skills between `{base}` and `{head}`\\n"
+                    f"- Skills changed: {total_changed}\\n"
+                    f"- Trust delta: {payload['summary']['trust_delta']:+.2f}\\n"
+                )
+                try:
+                    pr_result = subprocess.run(
+                        [
+                            "gh",
+                            "pr",
+                            "create",
+                            "--title",
+                            pr_title,
+                            "--body",
+                            pr_body,
+                            "--head",
+                            branch_to_push,
+                        ],
+                        cwd=run_dir,
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                except FileNotFoundError as exc:
+                    raise typer.BadParameter("GitHub CLI `gh` is required for `--pr`.") from exc
+                if pr_result.returncode != 0:
+                    raise typer.BadParameter(f"Unable to create pull request: {pr_result.stderr.strip()}")
+                pr_url = pr_result.stdout.strip().splitlines()[-1] if pr_result.stdout.strip() else ""
+                git_meta["pr_url"] = pr_url
+                console.print(f"Created pull request: {pr_url}", style="green")
+    elif commit and not total_changed:
+        console.print("No applied remediation changes to commit.", style="yellow")
+
+    artifact_path = artifacts_dir / "fix.results.json"
+    artifact_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    console.print(f"Fix artifact JSON: {artifact_path}", style="green")
+    console.print(
+        f"Fix summary — skills: {len(skills_payload)}, changed: {total_changed}, trust delta: {summary_data['trust_delta']:+.2f}",
+        style="cyan",
+    )
 
 
 @app.command()
