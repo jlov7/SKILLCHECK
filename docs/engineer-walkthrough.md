@@ -13,6 +13,11 @@ This guide shows how to integrate SKILLCHECK into developer workflows and CI pip
    ```
 3. Inspect `.skillcheck/results.*` for status and share with reviewers.
 4. For PR diffs only, run: `python -m skillcheck.cli diff . --base origin/master --head HEAD`.
+5. To auto-remediate safe frontmatter/schema issues in changed Skills:
+   ```bash
+   python -m skillcheck.cli fix . --base origin/master --head HEAD --dry-run
+   python -m skillcheck.cli fix . --base origin/master --head HEAD --apply --commit --push --pr --branch-name skillcheck-autofix
+   ```
 
 ## Adding to CI
 
@@ -46,6 +51,8 @@ Key flags:
 - `--policy-pack` and `--policy-version` lock governance behavior across environments.
 - `--artifacts <dir>` lets you store outputs outside the repo root (useful in multi-step pipelines).
 - `--policy` points to environment-specific policies (e.g., staging vs production).
+- `fix --dry-run/--apply` helps teams auto-clean safe schema/frontmatter issues before review.
+- `fix --pr` requires GitHub CLI (`gh`) and enforces `--pr -> --push -> --commit -> --apply`.
 
 ## Branch protections
 

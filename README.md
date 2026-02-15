@@ -92,6 +92,7 @@ uv pip install -e '.[dev]'
 skillcheck lint examples/brand-voice-editor
 skillcheck probe examples/brand-voice-editor
 skillcheck report . --fail-on-failures
+skillcheck fix . --base HEAD~1 --head HEAD --dry-run
 ```
 
 ### Test
@@ -191,9 +192,37 @@ For remediation tips, consult [`docs/finding-remediation.md`](docs/finding-remed
 | `skillcheck attest <path>` | Runs lint + probe and emits SBOM + attestation. | Install `[attest]` extras to enable Sigstore signing. |
 | `skillcheck report <run-dir>` | Aggregates previous runs into CSV/MD/JSON (+ optional SARIF). | `--sarif`, `--github-annotations`, `--release-gate`, `--min-trust-score`, `--fail-on-low-trust`. |
 | `skillcheck diff <repo-root>` | Audits only Skills touched between two git refs. | `--base`, `--head`, `--exec`, `--fail-on-failures`. |
+| `skillcheck fix <repo-root>` | Plans or applies safe remediations for changed Skills, with optional commit/push/PR automation. | `--dry-run`, `--apply`, `--base`, `--head`, `--commit`, `--push`, `--pr`, `--branch-name`. |
 | `skillcheck remediate <code>` | Prints guided fixes for a finding code. | `EGRESS_*`, `WRITE_*`, `SECRET_SUSPECT`, etc. |
 
 All commands accept either directories or `.zip` bundles containing `SKILL.md` (or `skill.md`).
+
+---
+
+## Autonomous remediation flow
+
+`skillcheck fix` is a deterministic, safety-first auto-remediation command.
+
+```bash
+# Preview safe fixes only (default)
+skillcheck fix . --base origin/master --head HEAD --dry-run
+
+# Apply safe fixes + open a PR
+skillcheck fix . --base origin/master --head HEAD \
+  --apply --commit --push --pr \
+  --branch-name skillcheck-autofix
+```
+
+What it does:
+- Scopes work to Skills touched between `--base` and `--head`.
+- Applies safe frontmatter/schema fixes only (no script rewrites).
+- Runs pre/post lint+probe and records trust delta.
+- Writes `.skillcheck/fix/fix.results.json` with actions, scores, and git/PR metadata.
+
+Guardrails:
+- `--pr` requires `--push`.
+- `--push` requires `--commit`.
+- `--commit` requires `--apply`.
 
 ---
 
@@ -266,6 +295,8 @@ For CI best practices, see [`docs/engineer-walkthrough.md`](docs/engineer-walkth
 | --- | --- |
 | `ModuleNotFoundError: skillcheck` | Re-run `python -m pip install -e .[dev]` from repo root. |
 | `skillcheck report` exits 1 | A Skill failed lint/probe; open `.skillcheck/results.md` or rerun without `--fail-on-failures`. |
+| `skillcheck fix --pr` fails with “GitHub CLI \`gh\` is required” | Install GitHub CLI and authenticate (`gh auth login`) before using `--pr`. |
+| `skillcheck fix` says no changed Skills | Verify `--base/--head` refs; check `.skillcheck/fix/fix.results.json` for scoped summary. |
 | Sandbox says “write to ../foo escapes skill root” | Update scripts to write to allowlisted paths (default `scratch/**`) or adjust policy globs. |
 | No telemetry spans appear | Ensure `SKILLCHECK_OTEL_EXPORTER` is set to `console` or `otlp`; otherwise spans are suppressed. |
 | CI artifacts missing | Confirm `.skillcheck/*` uploads and earlier steps succeeded. |

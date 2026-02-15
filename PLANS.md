@@ -82,3 +82,28 @@ Ship the highest-impact post-v1 upgrades: changed-files audits, SARIF/PR integra
 - Added end-to-end automation support for PR-native governance via SARIF and annotation output.
 - Added deterministic policy governance with pack selection and version pinning.
 - Added remediation UX and trust-based release gates with CI-friendly non-zero exits.
+
+---
+
+# Autonomous Remediation PR Bot (ExecPlan)
+
+## Purpose / Big Picture
+Ship a high-complexity, production-safe remediation flow that can detect changed Skills, apply deterministic safe fixes, and optionally open a remediation PR with auditable artifacts.
+
+## Progress
+- [x] Milestone 1: Safe remediation engine with tests
+- [x] Milestone 2: `skillcheck fix` command and artifact output
+- [x] Milestone 3: Git/PR automation guardrails
+- [x] Milestone 4: Docs/help/walkthrough updates
+- [ ] Milestone 5: Final verification, commit, and push
+
+## Surprises & Discoveries
+- A no-op `fix` run still benefits from writing a zeroed `fix.results.json` artifact for traceability.
+- `--pr` UX needed explicit handling when `gh` is unavailable to avoid raw stack traces.
+
+## Decision Log
+- Limited auto-remediation to frontmatter/schema edits only; no script rewrites for safety.
+- Defaulted `fix` to dry-run to keep behavior non-destructive unless explicitly requested.
+
+## Outcomes & Retrospective
+- In progress.

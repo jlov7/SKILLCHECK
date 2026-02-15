@@ -13,6 +13,7 @@ Repo working agreements for SKILLCHECK.
   - `skillcheck probe examples/brand-voice-editor --policy-pack balanced --policy-version 2`
   - `skillcheck report . --fail-on-failures --sarif --release-gate standard`
   - `skillcheck diff . --base HEAD~1 --head HEAD`
+  - `skillcheck fix . --base HEAD~1 --head HEAD --dry-run`
   - `skillcheck remediate EGRESS_SANDBOX`
 
 ## Quality Bar
