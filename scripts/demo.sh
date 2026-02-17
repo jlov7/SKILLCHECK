@@ -16,6 +16,15 @@ run() {
   "$@"
 }
 
+install_project() {
+  if command -v uv >/dev/null 2>&1; then
+    run uv pip install -e ".[dev]"
+  else
+    run python -m pip install --upgrade pip
+    run python -m pip install -e ".[dev]"
+  fi
+}
+
 if [ ! -d ".venv" ]; then
   python3 -m venv .venv
 fi
@@ -24,7 +33,7 @@ source .venv/bin/activate
 mkdir -p "$ARTIFACT_DIR"
 find "$ARTIFACT_DIR" -type f -delete
 
-run python -m pip install -e .[dev]
+install_project
 
 section "1) Baseline: safe Skill passes"
 run skillcheck lint examples/brand-voice-editor --output-dir "$ARTIFACT_DIR" --policy-pack balanced --policy-version 2

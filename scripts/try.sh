@@ -16,6 +16,15 @@ run_cmd() {
   "$@"
 }
 
+install_project() {
+  if command -v uv >/dev/null 2>&1; then
+    run_cmd uv pip install -e ".[dev]"
+  else
+    run_cmd python -m pip install --upgrade pip
+    run_cmd python -m pip install -e ".[dev]"
+  fi
+}
+
 print_header "SKILLCHECK quick trial"
 printf '%s\n' "This script runs a safe + risky sample audit and writes outputs to ./.skillcheck"
 mkdir -p "$ARTIFACT_DIR"
@@ -33,8 +42,7 @@ fi
 # shellcheck source=/dev/null
 source .venv/bin/activate
 
-run_cmd python -m pip install --upgrade pip
-run_cmd python -m pip install -e .[dev]
+install_project
 
 run_cmd skillcheck lint examples/brand-voice-editor --output-dir "$ARTIFACT_DIR" --policy-pack balanced --policy-version 2
 run_cmd skillcheck probe examples/brand-voice-editor --output-dir "$ARTIFACT_DIR" --policy-pack balanced --policy-version 2
